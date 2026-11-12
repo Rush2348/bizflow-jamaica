@@ -144,7 +144,7 @@ $("#notify-pro").onclick=()=>toast("Launch list sign-up will be added in a futur
 
 /* Supabase cloud account and database integration */
 const SUPABASE_URL = "https://dckurwexkkyjtcmbkiod.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "PASTE_SUPABASE_PUBLISHABLE_KEY_HERE";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1gUrnPchrYIjoiTIET89SQ_kd5mpoDs";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let activeUser = null;
 let activeBusiness = null;
