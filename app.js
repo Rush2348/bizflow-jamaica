@@ -262,9 +262,15 @@ persist = function(){
 async function enterWorkspace(user){
   activeUser=user;
   cloudReady=false;
+  const localBackup=JSON.parse(JSON.stringify(state));
   try{
     activeBusiness=await ensureBusiness();
     await loadCloudState();
+    // Preserve existing browser-only documents when the new cloud account is empty.
+    if(state.documents.length===0 && localBackup.documents.length>0){
+      state=localBackup;
+      await syncCloudState();
+    }
     cloudReady=true;
     document.body.classList.add("authenticated");
     $("#profile-name").textContent=state.settings.businessName||user.email||"Your business";
