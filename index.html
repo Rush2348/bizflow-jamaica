@@ -11,6 +11,24 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <section class="auth-screen" id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="brand-mark">B</span><div><strong>BizFlow</strong><small>JAMAICA</small></div></div>
+      <p class="eyebrow">YOUR BUSINESS WORKSPACE</p>
+      <h1 id="auth-title">Welcome back.</h1>
+      <p class="auth-copy" id="auth-copy">Sign in to access your business documents from any device.</p>
+      <form id="auth-form">
+        <label>Email address<input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label>Password<input id="auth-password" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label>
+        <button class="button primary auth-submit" id="auth-submit" type="submit">Sign in</button>
+      </form>
+      <p class="auth-message" id="auth-message" role="status"></p>
+      <button class="auth-switch" id="auth-switch" type="button">New to BizFlow? Create an account</button>
+      <p class="auth-footnote">Your business data is private to your account. Email confirmation may be required.</p>
+    </div>
+  </section>
+
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#" aria-label="BizFlow Jamaica home">
@@ -43,7 +61,7 @@
       <header class="topbar">
         <button class="mobile-menu" id="mobile-menu" aria-label="Open navigation">☰</button>
         <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-current">Overview</strong></div>
-        <div class="topbar-right">
+        <div class="topbar-right"><button class="signout-button" id="signout-button" type="button">Sign out</button>
           <span class="local-chip"><i></i> Jamaica · JMD</span>
           <button class="help-button" id="help-button" title="How it works">?</button>
         </div>
@@ -126,6 +144,7 @@
 
   <div class="modal-backdrop" id="help-modal" aria-hidden="true"><section class="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="modal-header"><div><p class="eyebrow">A QUICK GUIDE</p><h2 id="help-title">Welcome to BizFlow</h2></div><button class="icon-button" data-close="help-modal" aria-label="Close">×</button></div><div class="help-content"><p>BizFlow helps you prepare clear business documents in a few steps.</p><ol><li>Open <strong>Business settings</strong> and add your business name.</li><li>Select <strong>Create document</strong> and choose an invoice, quotation or receipt.</li><li>Add your customer and line items. BizFlow calculates the total.</li><li>Save the document, then print it or save it as a PDF.</li></ol><p class="notice">Prototype note: documents are stored only in this browser on this device. Export or print important records and do not use this prototype as your only business record.</p></div><div class="modal-footer"><button class="button primary" data-close="help-modal">Got it</button></div></section></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>
