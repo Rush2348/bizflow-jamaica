@@ -141,4 +141,174 @@ $$("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.datase
 $$(".modal-backdrop").forEach(backdrop=>backdrop.addEventListener("click",e=>{if(e.target===backdrop)closeModal(backdrop.id);}));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$$(".modal-backdrop.open").forEach(m=>closeModal(m.id));});
 $("#notify-pro").onclick=()=>toast("Launch list sign-up will be added in a future version.");
-loadSettings();renderAll();
+
+/* Supabase cloud account and database integration */
+const SUPABASE_URL = "https://dckurwexkkyjtcmbkiod.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1gUrnPchrYIjoiTIET89SQ_kd5mpoDs";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let activeUser = null;
+let activeBusiness = null;
+let cloudReady = false;
+let authMode = "signin";
+
+function authMessage(message, isError=false){
+  const el = $("#auth-message");
+  if(el){ el.textContent=message; el.style.color=isError?"#bd554d":"#0b887c"; }
+}
+function setAuthMode(mode){
+  authMode=mode;
+  $("#auth-title").textContent=mode==="signup"?"Create your account.":"Welcome back.";
+  $("#auth-copy").textContent=mode==="signup"?"Create a secure BizFlow account for your business.":"Sign in to access your business documents from any device.";
+  $("#auth-submit").textContent=mode==="signup"?"Create account":"Sign in";
+  $("#auth-switch").textContent=mode==="signup"?"Already have an account? Sign in":"New to BizFlow? Create an account";
+  $("#auth-password").autocomplete=mode==="signup"?"new-password":"current-password";
+  authMessage("");
+}
+async function ensureBusiness(){
+  const {data:rows,error}=await supabaseClient.from("businesses").select("*").eq("owner_id",activeUser.id).limit(1);
+  if(error) throw error;
+  if(rows && rows.length){ activeBusiness=rows[0]; return activeBusiness; }
+  const localName=state.settings.businessName||"My Business";
+  const {data,error:insertError}=await supabaseClient.from("businesses").insert({
+    owner_id:activeUser.id,business_name:localName,email:state.settings.email||activeUser.email||null,
+    phone:state.settings.phone||null,address:state.settings.address||null,currency:state.settings.currency||"JMD"
+  }).select().single();
+  if(insertError) throw insertError;
+  activeBusiness=data;
+  return activeBusiness;
+}
+async function loadCloudState(){
+  const businessId=activeBusiness.id;
+  const [customersRes,docsRes,itemsRes]=await Promise.all([
+    supabaseClient.from("customers").select("*").eq("business_id",businessId),
+    supabaseClient.from("documents").select("*").eq("business_id",businessId).order("created_at",{ascending:false}),
+    supabaseClient.from("document_items").select("*")
+  ]);
+  if(customersRes.error) throw customersRes.error;
+  if(docsRes.error) throw docsRes.error;
+  if(itemsRes.error) throw itemsRes.error;
+  const customerMap=new Map(customersRes.data.map(c=>[c.id,c]));
+  const itemsByDoc=new Map();
+  itemsRes.data.forEach(item=>{if(!itemsByDoc.has(item.document_id))itemsByDoc.set(item.document_id,[]);itemsByDoc.get(item.document_id).push(item);});
+  const cloudDocs=docsRes.data.map(d=>{
+    const c=customerMap.get(d.customer_id)||{};
+    const lines=(itemsByDoc.get(d.id)||[]).map(i=>({description:i.description,qty:Number(i.quantity),rate:Number(i.unit_price)}));
+    return {
+      id:d.id,type:d.document_type==="quotation"?"Quotation":d.document_type==="receipt"?"Receipt":"Invoice",
+      number:d.document_number||"",date:d.issue_date,customer:{name:c.name||"Customer",email:c.email||"",phone:c.phone||"",address:c.address||""},
+      lines,taxRate:Number(d.tax_rate)||0,subtotal:Number(d.subtotal)||0,tax:Number(d.tax_amount)||0,total:Number(d.total)||0,
+      notes:d.notes||"",createdAt:d.created_at||new Date().toISOString(),
+      business:{businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD",trn:""}
+    };
+  });
+  state.settings={...state.settings,businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD"};
+  state.documents=cloudDocs;
+}
+async function syncCloudState(){
+  if(!cloudReady||!activeBusiness||!activeUser)return;
+  const businessId=activeBusiness.id;
+  const settings=state.settings;
+  const {error:businessError}=await supabaseClient.from("businesses").update({
+    business_name:settings.businessName||"My Business",email:settings.email||null,
+    phone:settings.phone||null,address:settings.address||null,currency:settings.currency||"JMD"
+  }).eq("id",businessId);
+  if(businessError) throw businessError;
+  const customerRows=await supabaseClient.from("customers").select("*").eq("business_id",businessId);
+  if(customerRows.error) throw customerRows.error;
+  const knownCustomers=customerRows.data||[];
+  const localDocIds=state.documents.map(d=>d.id);
+  for(const doc of state.documents){
+    let customer=knownCustomers.find(c=>c.name===doc.customer.name && (c.email||"")===(doc.customer.email||""));
+    const customerPayload={business_id:businessId,name:doc.customer.name,email:doc.customer.email||null,phone:doc.customer.phone||null,address:doc.customer.address||null};
+    if(customer){
+      const {error}=await supabaseClient.from("customers").update(customerPayload).eq("id",customer.id);
+      if(error) throw error;
+    }else{
+      const {data,error}=await supabaseClient.from("customers").insert(customerPayload).select().single();
+      if(error) throw error;
+      customer=data;knownCustomers.push(customer);
+    }
+    const docPayload={
+      id:doc.id,business_id:businessId,customer_id:customer.id,
+      document_type:doc.type.toLowerCase(),document_number:doc.number||null,issue_date:doc.date||null,
+      status:"draft",subtotal:doc.subtotal||0,tax_rate:doc.taxRate||0,tax_amount:doc.tax||0,total:doc.total||0,notes:doc.notes||null
+    };
+    const {error:docError}=await supabaseClient.from("documents").upsert(docPayload);
+    if(docError) throw docError;
+    const {error:deleteItemsError}=await supabaseClient.from("document_items").delete().eq("document_id",doc.id);
+    if(deleteItemsError) throw deleteItemsError;
+    if(doc.lines.length){
+      const itemPayload=doc.lines.map(line=>({document_id:doc.id,description:line.description,quantity:line.qty,unit_price:line.rate,amount:line.qty*line.rate}));
+      const {error:itemError}=await supabaseClient.from("document_items").insert(itemPayload);
+      if(itemError) throw itemError;
+    }
+  }
+  const {data:remoteDocs,error:remoteError}=await supabaseClient.from("documents").select("id").eq("business_id",businessId);
+  if(remoteError) throw remoteError;
+  const removed=(remoteDocs||[]).map(d=>d.id).filter(id=>!localDocIds.includes(id));
+  if(removed.length){
+    const {error}=await supabaseClient.from("documents").delete().in("id",removed);
+    if(error) throw error;
+  }
+}
+const localPersist = persist;
+persist = function(){
+  localPersist();
+  syncCloudState().then(()=>toast("Saved securely to your BizFlow account")).catch(error=>{
+    console.error("BizFlow cloud save:",error);
+    toast("Saved on this device; cloud sync needs attention");
+  });
+};
+async function enterWorkspace(user){
+  activeUser=user;
+  cloudReady=false;
+  try{
+    activeBusiness=await ensureBusiness();
+    await loadCloudState();
+    cloudReady=true;
+    document.body.classList.add("authenticated");
+    $("#profile-name").textContent=state.settings.businessName||user.email||"Your business";
+    loadSettings();
+    renderAll();
+    if(!state.settings.businessName) showView("settings");
+  }catch(error){
+    console.error("BizFlow setup:",error);
+    authMessage("We couldn't load your business data: "+(error.message||"Please check your Supabase tables and policies."),true);
+    document.body.classList.remove("authenticated");
+  }
+}
+async function handleAuthSubmit(event){
+  event.preventDefault();
+  const email=$("#auth-email").value.trim(),password=$("#auth-password").value;
+  $("#auth-submit").disabled=true;
+  authMessage(authMode==="signup"?"Creating your account…":"Signing in…");
+  try{
+    if(authMode==="signup"){
+      const {data,error}=await supabaseClient.auth.signUp({email,password});
+      if(error) throw error;
+      if(data.session) await enterWorkspace(data.user);
+      else authMessage("Account created. Check your email to confirm, then return here and sign in.");
+    }else{
+      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      await enterWorkspace(data.user);
+    }
+  }catch(error){authMessage(error.message||"Something went wrong. Please try again.",true);}
+  finally{$("#auth-submit").disabled=false;}
+}
+async function initAuth(){
+  $("#auth-form").addEventListener("submit",handleAuthSubmit);
+  $("#auth-switch").addEventListener("click",()=>setAuthMode(authMode==="signin"?"signup":"signin"));
+  $("#signout-button").addEventListener("click",async()=>{
+    cloudReady=false;
+    const {error}=await supabaseClient.auth.signOut();
+    if(error){toast("Could not sign out: "+error.message);return;}
+    activeUser=null;activeBusiness=null;document.body.classList.remove("authenticated");setAuthMode("signin");
+  });
+  const {data,error}=await supabaseClient.auth.getSession();
+  if(error){authMessage(error.message,true);return;}
+  if(data.session) await enterWorkspace(data.session.user);
+  else setAuthMode("signin");
+}
+
+initAuth();
