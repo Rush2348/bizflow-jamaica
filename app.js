@@ -144,7 +144,7 @@ $("#notify-pro").onclick=()=>toast("Launch list sign-up will be added in a futur
 
 /* Supabase cloud account and database integration */
 const SUPABASE_URL = "https://dckurwexkkyjtcmbkiod.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1gUrnPchrYIjoiTIET89SQ_kd5mpoDs";
+const SUPABASE_PUBLISHABLE_KEY = "PASTE_SUPABASE_PUBLISHABLE_KEY_HERE";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let activeUser = null;
 let activeBusiness = null;
@@ -303,6 +303,7 @@ async function handleAuthSubmit(event){
   finally{$("#auth-submit").disabled=false;}
 }
 async function initAuth(){
+  if(SUPABASE_PUBLISHABLE_KEY==="PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"){authMessage("Add your Supabase publishable key to finish connecting BizFlow.",true);return;}
   $("#auth-form").addEventListener("submit",handleAuthSubmit);
   $("#auth-switch").addEventListener("click",()=>setAuthMode(authMode==="signin"?"signup":"signin"));
   $("#signout-button").addEventListener("click",async()=>{
