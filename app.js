@@ -140,7 +140,8 @@ $("#mobile-menu").onclick=()=>$("#sidebar").classList.toggle("open");
 $$("[data-close]").forEach(b=>b.addEventListener("click",()=>closeModal(b.dataset.close)));
 $$(".modal-backdrop").forEach(backdrop=>backdrop.addEventListener("click",e=>{if(e.target===backdrop)closeModal(backdrop.id);}));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$$(".modal-backdrop.open").forEach(m=>closeModal(m.id));});
-$("#notify-pro").onclick=()=>toast("Launch list sign-up will be added in a future version.");
+const notifyProButton = $("#notify-pro");
+if(notifyProButton) notifyProButton.onclick=()=>toast("Launch list sign-up will be added in a future version.");
 
 /* Supabase cloud account and database integration */
 const SUPABASE_URL = "https://dckurwexkkyjtcmbkiod.supabase.co";
