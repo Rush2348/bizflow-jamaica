@@ -4,6 +4,7 @@ const STORE = "bizflow-jamaica-v1";
 const defaults = {businessName:"",email:"",phone:"",trn:"",address:"",currency:"JMD",tax:0};
 let state = loadState();
 let currentPreview = null;
+let editingDocumentId = null;
 
 function loadState(){
   try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved ? {...saved,customers:saved.customers||[]} : {settings:{...defaults},documents:[],customers:[]}; }
@@ -78,6 +79,7 @@ function saveCustomer(event){
   state.customers.unshift(customer);persist();closeModal("customer-modal");toast("Customer saved successfully");
 }
 function newDocument(type="Invoice"){
+  editingDocumentId = null;
   $("#document-form").reset();
   populateCustomerChoices();
   $("#doc-type").value=type;
@@ -88,6 +90,28 @@ function newDocument(type="Invoice"){
   $("#line-items").innerHTML="";
   addLine();
   $("#modal-title").textContent=`Create ${type.toLowerCase()}`;
+  openModal("document-modal");
+}
+function editDocument(id){
+  const doc=state.documents.find(item=>item.id===id);
+  if(!doc)return;
+  editingDocumentId=id;
+  $("#document-form").reset();
+  populateCustomerChoices();
+  $("#doc-type").value=doc.type;
+  $("#doc-number").value=doc.number;
+  $("#doc-date").value=doc.date||new Date().toISOString().slice(0,10);
+  $("#customer-name").value=doc.customer?.name||"";
+  $("#customer-email").value=doc.customer?.email||"";
+  $("#customer-phone").value=doc.customer?.phone||"";
+  $("#customer-address").value=doc.customer?.address||"";
+  $("#doc-tax").value=doc.taxRate||0;
+  $("#doc-notes").value=doc.notes||"";
+  $("#form-error").textContent="";
+  $("#line-items").innerHTML="";
+  (doc.lines||[]).forEach(line=>addLine(line));
+  if(!(doc.lines||[]).length)addLine();
+  $("#modal-title").textContent=`Edit ${doc.type.toLowerCase()}`;
   openModal("document-modal");
 }
 function addLine(item={description:"",qty:1,rate:0}){
@@ -116,8 +140,10 @@ function saveDocument(event){
   const lines=collectLines(),type=$("#doc-type").value,t=totals(lines,$("#doc-tax").value);
   if(!customer.name){$("#form-error").textContent="Please enter the customer or business name.";return;}
   if(!lines.length||lines.some(l=>!l.description||l.qty<=0||l.rate<0)){ $("#form-error").textContent="Add at least one complete item with a description and valid quantity.";return;}
-  const doc={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),type,number:$("#doc-number").value,date:$("#doc-date").value,customer,lines,taxRate:Number($("#doc-tax").value)||0,...t,notes:$("#doc-notes").value.trim(),createdAt:new Date().toISOString(),business:{...state.settings}};
-  state.documents.unshift(doc);persist();closeModal("document-modal");toast(`${type} saved successfully`);previewDocument(doc.id);
+  const existing=editingDocumentId?state.documents.find(d=>d.id===editingDocumentId):null;
+  const doc={id:existing?.id||(crypto.randomUUID?crypto.randomUUID():String(Date.now())),type,number:$("#doc-number").value,date:$("#doc-date").value,customer,lines,taxRate:Number($("#doc-tax").value)||0,...t,notes:$("#doc-notes").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),business:existing?.business||{...state.settings}};
+  if(existing){state.documents=state.documents.map(d=>d.id===doc.id?doc:d);}else{state.documents.unshift(doc);}
+  editingDocumentId=null;persist();closeModal("document-modal");toast(`${type} ${existing?"updated":"saved"} successfully`);previewDocument(doc.id);
 }
 function renderAll(){renderDashboard();renderDocuments();renderCustomers();$("#profile-name").textContent=state.settings.businessName||"Your business";}
 function renderDashboard(){
@@ -137,10 +163,11 @@ function renderDocuments(){
   if(!$("#documents-table"))return;
   const q=($("#document-search")?.value||"").toLowerCase(),filter=$("#document-filter")?.value||"All";
   const docs=state.documents.filter(d=>(filter==="All"||d.type===filter)&&(`${d.number} ${d.customer.name} ${d.type}`).toLowerCase().includes(q));
-  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill">Saved</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
+  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill">Saved</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
   $("#documents-empty").style.display=docs.length?"none":"flex";
-  $$("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
-  $$("[data-delete]",$("#documents-table")).forEach(b=>b.onclick=()=>deleteDocument(b.dataset.delete));
+  $("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
+  $("[data-edit]",$("#documents-table")).forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
+  $("[data-delete]",$("#documents-table")).forEach(b=>b.onclick=()=>deleteDocument(b.dataset.delete));
 }
 function deleteDocument(id){if(!confirm("Delete this saved document? This cannot be undone."))return;state.documents=state.documents.filter(d=>d.id!==id);persist();toast("Document deleted");}
 function renderCustomers(){
