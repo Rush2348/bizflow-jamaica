@@ -29,6 +29,21 @@ function nextNumber(type){
   const count=state.documents.filter(d=>d.type===type).length+1;
   return `${prefix}-${new Date().getFullYear()}-${String(count).padStart(3,"0")}`;
 }
+function populateCustomerChoices(){
+  const select=$("#existing-customer");
+  if(!select)return;
+  const unique=new Map();
+  (state.customers||[]).forEach(c=>unique.set(c.id||`${c.name}|${c.email||""}`,c));
+  select.innerHTML='<option value="">— Enter a new customer below —</option>'+[...unique.values()].map(c=>`<option value="${escapeHtml(c.id||"")}" data-name="${escapeHtml(c.name)}" data-email="${escapeHtml(c.email||"")}" data-phone="${escapeHtml(c.phone||"")}" data-address="${escapeHtml(c.address||"")}">${escapeHtml(c.name)}${c.email?" · "+escapeHtml(c.email):""}</option>`).join("");
+}
+function fillSelectedCustomer(){
+  const option=$("#existing-customer")?.selectedOptions[0];
+  if(!option||!option.value)return;
+  $("#customer-name").value=option.dataset.name||"";
+  $("#customer-email").value=option.dataset.email||"";
+  $("#customer-phone").value=option.dataset.phone||"";
+  $("#customer-address").value=option.dataset.address||"";
+}
 function newCustomer(){
   $("#customer-form").reset(); $("#customer-form-error").textContent=""; openModal("customer-modal");
 }
@@ -42,6 +57,7 @@ function saveCustomer(event){
 }
 function newDocument(type="Invoice"){
   $("#document-form").reset();
+  populateCustomerChoices();
   $("#doc-type").value=type;
   $("#doc-number").value=nextNumber(type);
   $("#doc-date").value=new Date().toISOString().slice(0,10);
@@ -139,6 +155,7 @@ $$(".nav-link[data-view], [data-view]").forEach(b=>b.addEventListener("click",()
 $("#new-document").onclick=$("#documents-new").onclick=()=>newDocument();
 $("#customer-create").onclick=()=>newCustomer();
 $("#customer-form").addEventListener("submit",saveCustomer);
+$("#existing-customer").addEventListener("change",fillSelectedCustomer);
 $("#empty-create").onclick=()=>newDocument();
 $$("[data-doc]").forEach(b=>b.onclick=()=>newDocument(b.dataset.doc));
 $("#add-line").onclick=()=>addLine();
