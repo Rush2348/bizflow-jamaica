@@ -14,6 +14,12 @@ function persist(){ localStorage.setItem(STORE, JSON.stringify(state)); renderAl
 function money(value){ return new Intl.NumberFormat("en-JM",{style:"currency",currency:state.settings.currency||"JMD",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0); }
 function dateText(value){ if(!value) return "—"; return new Date(value+"T12:00:00").toLocaleDateString("en-JM",{day:"numeric",month:"short",year:"numeric"}); }
 function escapeHtml(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function sameCustomer(a,b){
+  const emailA=String(a?.email||"").trim().toLowerCase(),emailB=String(b?.email||"").trim().toLowerCase();
+  if(emailA&&emailB)return emailA===emailB;
+  const nameA=String(a?.name||"").trim().toLowerCase(),nameB=String(b?.name||"").trim().toLowerCase();
+  return Boolean(nameA&&nameB&&nameA===nameB);
+}
 function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600);}
 function showView(name){
   $$(".view").forEach(v=>v.classList.toggle("active",v.id===`view-${name}`));
@@ -172,13 +178,37 @@ function renderDocuments(){
 function deleteDocument(id){if(!confirm("Delete this saved document? This cannot be undone."))return;state.documents=state.documents.filter(d=>d.id!==id);persist();toast("Document deleted");}
 function renderCustomers(){
   if(!$("#customers-table"))return;
-  const map=new Map();
-  state.customers.forEach(c=>map.set(c.email||c.name.toLowerCase(),{...c,count:0}));
-  state.documents.forEach(d=>{const key=d.customer.email||d.customer.name.toLowerCase();if(!map.has(key))map.set(key,{...d.customer,count:0});map.get(key).count++;});
+  const customers=[];
+  (state.customers||[]).forEach(c=>{
+    const matchIndex=customers.findIndex(existing=>sameCustomer(existing,c));
+    if(matchIndex<0)customers.push({...c});
+    else customers[matchIndex]={...customers[matchIndex],...c};
+  });
+  (state.documents||[]).forEach(d=>{
+    const docCustomer=d.customer||{},matchIndex=customers.findIndex(c=>sameCustomer(c,docCustomer));
+    if(matchIndex<0)customers.push({...docCustomer});
+    else customers[matchIndex]={...docCustomer,...customers[matchIndex],name:customers[matchIndex].name||docCustomer.name,email:customers[matchIndex].email||docCustomer.email,phone:customers[matchIndex].phone||docCustomer.phone,address:customers[matchIndex].address||docCustomer.address};
+  });
   const q=($("#customer-search")?.value||"").toLowerCase();
-  const customers=[...map.values()].filter(c=>`${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(q));
-  $("#customers-table").innerHTML=customers.map(c=>`<tr><td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td></tr>`).join("");
-  $("#customers-empty").style.display=customers.length?"none":"flex";
+  const visibleCustomers=customers.map(c=>({...c,count:(state.documents||[]).filter(d=>sameCustomer(c,d.customer||{})).length})).filter(c=>`${c.name||""} ${c.email||""} ${c.phone||""}`.toLowerCase().includes(q));
+  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td></tr>`).join("");
+  $("#customers-empty").style.display=visibleCustomers.length?"none":"flex";
+  $$("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
+}
+function showCustomerDetails(customer){
+  const docs=(state.documents||[]).filter(d=>sameCustomer(customer,d.customer||{}));
+  $("#customer-details-title").textContent=customer.name||"Customer";
+  const address=escapeHtml(customer.address||"—").replace(/\n/g,"<br>");
+  const docsContent=docs.length
+    ?`<h3>Documents</h3><div class="table-scroll"><table><thead><tr><th>NUMBER</th><th>TYPE</th><th>DATE</th><th>TOTAL</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.number||"—")}</td><td>${escapeHtml(d.type||"—")}</td><td>${escapeHtml(dateText(d.date))}</td><td>${escapeHtml(money(d.total))}</td><td><button type="button" class="row-action" data-customer-document-preview="${escapeHtml(d.id)}">View</button></td></tr>`).join("")}</tbody></table></div>`
+    :"<p>No documents yet.</p>";
+  $("#customer-detail-content").innerHTML=`<div class="form-grid two"><div><strong>Name</strong><p>${escapeHtml(customer.name||"—")}</p></div><div><strong>Email</strong><p>${escapeHtml(customer.email||"—")}</p></div><div><strong>Phone</strong><p>${escapeHtml(customer.phone||"—")}</p></div><div><strong>Address</strong><p>${address}</p></div></div><div class="form-section-title modal-section"><h3>Saved documents</h3></div>${docsContent}`;
+  $$("[data-customer-document-preview]",$("#customer-detail-content")).forEach(button=>button.onclick=()=>{
+    const id=button.dataset.customerDocumentPreview;
+    closeModal("customer-details-modal");
+    previewDocument(id);
+  });
+  openModal("customer-details-modal");
 }
 function previewDocument(id){
   const d=state.documents.find(x=>x.id===id);if(!d)return;currentPreview=d;
