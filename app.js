@@ -33,7 +33,13 @@ function populateCustomerChoices(){
   const select=$("#existing-customer");
   if(!select)return;
   const unique=new Map();
-  (state.customers||[]).forEach(c=>unique.set(c.id||`${c.name}|${c.email||""}`,c));
+  // Include independently saved customers and customers already used on documents.
+  [...(state.customers||[]),...(state.documents||[]).map(d=>d.customer||{})].forEach(c=>{
+    if(!c.name)return;
+    const key=`${c.name.toLowerCase()}|${(c.email||"").toLowerCase()}`;
+    const previous=unique.get(key)||{};
+    unique.set(key,{...previous,...c});
+  });
   select.innerHTML='<option value="">— Enter a new customer below —</option>'+[...unique.values()].map(c=>`<option value="${escapeHtml(c.id||"")}" data-name="${escapeHtml(c.name)}" data-email="${escapeHtml(c.email||"")}" data-phone="${escapeHtml(c.phone||"")}" data-address="${escapeHtml(c.address||"")}">${escapeHtml(c.name)}${c.email?" · "+escapeHtml(c.email):""}</option>`).join("");
 }
 function fillSelectedCustomer(){
