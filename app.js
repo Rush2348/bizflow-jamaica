@@ -33,14 +33,30 @@ function populateCustomerChoices(){
   const select=$("#existing-customer");
   if(!select)return;
   const unique=new Map();
-  // Include independently saved customers and customers already used on documents.
-  [...(state.customers||[]),...(state.documents||[]).map(d=>d.customer||{})].forEach(c=>{
-    if(!c.name)return;
-    const key=`${c.name.toLowerCase()}|${(c.email||"").toLowerCase()}`;
+  const sources=[
+    ...(state.customers||[]),
+    ...(state.documents||[]).map(d=>d.customer||{})
+  ];
+  sources.forEach(c=>{
+    const email=(c.email||"").trim().toLowerCase();
+    const name=(c.name||c.business_name||c.businessName||"").trim();
+    if(!email&&!name)return;
+    const key=email||name.toLowerCase();
     const previous=unique.get(key)||{};
-    unique.set(key,{...previous,...c});
+    unique.set(key,{
+      ...previous,...c,
+      name:name||previous.name||"",
+      email:(c.email||previous.email||"").trim(),
+      phone:(c.phone||previous.phone||"").trim(),
+      address:(c.address||previous.address||"").trim()
+    });
   });
-  select.innerHTML='<option value="">— Enter a new customer below —</option>'+[...unique.values()].map(c=>`<option value="${escapeHtml(c.id||"")}" data-name="${escapeHtml(c.name)}" data-email="${escapeHtml(c.email||"")}" data-phone="${escapeHtml(c.phone||"")}" data-address="${escapeHtml(c.address||"")}">${escapeHtml(c.name)}${c.email?" · "+escapeHtml(c.email):""}</option>`).join("");
+  const customers=[...unique.values()].filter(c=>c.name||c.email);
+  select.innerHTML='<option value="">— Enter a new customer below —</option>'+customers.map((c,i)=>{
+    const name=c.name||"Customer";
+    const label=c.email?(`${name} — ${c.email}`):name;
+    return `<option value="${escapeHtml(c.id||c.email||String(i))}" data-name="${escapeHtml(c.name||"")}" data-email="${escapeHtml(c.email||"")}" data-phone="${escapeHtml(c.phone||"")}" data-address="${escapeHtml(c.address||"")}">${escapeHtml(label)}</option>`;
+  }).join("");
 }
 function fillSelectedCustomer(){
   const option=$("#existing-customer")?.selectedOptions[0];
