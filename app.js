@@ -165,9 +165,9 @@ function renderDocuments(){
   const docs=state.documents.filter(d=>(filter==="All"||d.type===filter)&&(`${d.number} ${d.customer.name} ${d.type}`).toLowerCase().includes(q));
   $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill">Saved</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
   $("#documents-empty").style.display=docs.length?"none":"flex";
-  $("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
-  $("[data-edit]",$("#documents-table")).forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
-  $("[data-delete]",$("#documents-table")).forEach(b=>b.onclick=()=>deleteDocument(b.dataset.delete));
+  $$("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
+  $$("[data-edit]",$("#documents-table")).forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
+  $$("[data-delete]",$("#documents-table")).forEach(b=>b.onclick=()=>deleteDocument(b.dataset.delete));
 }
 function deleteDocument(id){if(!confirm("Delete this saved document? This cannot be undone."))return;state.documents=state.documents.filter(d=>d.id!==id);persist();toast("Document deleted");}
 function renderCustomers(){
