@@ -6,8 +6,8 @@ let state = loadState();
 let currentPreview = null;
 
 function loadState(){
-  try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved || {settings:{...defaults},documents:[]}; }
-  catch { return {settings:{...defaults},documents:[]}; }
+  try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved ? {...saved,customers:saved.customers||[]} : {settings:{...defaults},documents:[],customers:[]}; }
+  catch { return {settings:{...defaults},documents:[],customers:[]}; }
 }
 function persist(){ localStorage.setItem(STORE, JSON.stringify(state)); renderAll(); }
 function money(value){ return new Intl.NumberFormat("en-JM",{style:"currency",currency:state.settings.currency||"JMD",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0); }
@@ -28,6 +28,17 @@ function nextNumber(type){
   const prefix=type==="Invoice"?"INV":type==="Quotation"?"QUO":"REC";
   const count=state.documents.filter(d=>d.type===type).length+1;
   return `${prefix}-${new Date().getFullYear()}-${String(count).padStart(3,"0")}`;
+}
+function newCustomer(){
+  $("#customer-form").reset(); $("#customer-form-error").textContent=""; openModal("customer-modal");
+}
+function saveCustomer(event){
+  event.preventDefault();
+  const customer={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$("#new-customer-name").value.trim(),email:$("#new-customer-email").value.trim(),phone:$("#new-customer-phone").value.trim(),address:$("#new-customer-address").value.trim()};
+  if(!customer.name){$("#customer-form-error").textContent="Please enter a customer name.";return;}
+  const key=c=>`${c.name.toLowerCase()}|${(c.email||"").toLowerCase()}`;
+  if(state.customers.some(c=>key(c)===key(customer))){$("#customer-form-error").textContent="This customer is already saved.";return;}
+  state.customers.unshift(customer);persist();closeModal("customer-modal");toast("Customer saved successfully");
 }
 function newDocument(type="Invoice"){
   $("#document-form").reset();
@@ -97,6 +108,7 @@ function deleteDocument(id){if(!confirm("Delete this saved document? This cannot
 function renderCustomers(){
   if(!$("#customers-table"))return;
   const map=new Map();
+  state.customers.forEach(c=>map.set(c.email||c.name.toLowerCase(),{...c,count:0}));
   state.documents.forEach(d=>{const key=d.customer.email||d.customer.name.toLowerCase();if(!map.has(key))map.set(key,{...d.customer,count:0});map.get(key).count++;});
   const q=($("#customer-search")?.value||"").toLowerCase();
   const customers=[...map.values()].filter(c=>`${c.name} ${c.email} ${c.phone}`.toLowerCase().includes(q));
@@ -124,7 +136,9 @@ function saveSettings(e){
 }
 
 $$(".nav-link[data-view], [data-view]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
-$("#new-document").onclick=$("#documents-new").onclick=$("#customer-create").onclick=()=>newDocument();
+$("#new-document").onclick=$("#documents-new").onclick=()=>newDocument();
+$("#customer-create").onclick=()=>newCustomer();
+$("#customer-form").addEventListener("submit",saveCustomer);
 $("#empty-create").onclick=()=>newDocument();
 $$("[data-doc]").forEach(b=>b.onclick=()=>newDocument(b.dataset.doc));
 $("#add-line").onclick=()=>addLine();
@@ -204,6 +218,7 @@ async function loadCloudState(){
   });
   state.settings={...state.settings,businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD"};
   state.documents=cloudDocs;
+  state.customers=(customersRes.data||[]).map(c=>({id:c.id,name:c.name||"",email:c.email||"",phone:c.phone||"",address:c.address||""}));
 }
 async function syncCloudState(){
   if(!cloudReady||!activeBusiness||!activeUser)return;
@@ -217,6 +232,18 @@ async function syncCloudState(){
   const customerRows=await supabaseClient.from("customers").select("*").eq("business_id",businessId);
   if(customerRows.error) throw customerRows.error;
   const knownCustomers=customerRows.data||[];
+  for(const saved of (state.customers||[])){
+    const match=knownCustomers.find(c=>c.name===saved.name && (c.email||"")===(saved.email||""));
+    const payload={business_id:businessId,name:saved.name,email:saved.email||null,phone:saved.phone||null,address:saved.address||null};
+    if(match){
+      const {error}=await supabaseClient.from("customers").update(payload).eq("id",match.id);
+      if(error) throw error;
+    }else{
+      const {data,error}=await supabaseClient.from("customers").insert(payload).select().single();
+      if(error) throw error;
+      knownCustomers.push(data);
+    }
+  }
   const localDocIds=state.documents.map(d=>d.id);
   for(const doc of state.documents){
     let customer=knownCustomers.find(c=>c.name===doc.customer.name && (c.email||"")===(doc.customer.email||""));
