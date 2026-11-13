@@ -290,7 +290,7 @@ async function handleAuthSubmit(event){
   authMessage(authMode==="signup"?"Creating your account…":"Signing in…");
   try{
     if(authMode==="signup"){
-      const {data,error}=await supabaseClient.auth.signUp({email,password});
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:"https://rush2348.github.io/bizflow-jamaica/"}});
       if(error) throw error;
       if(data.session) await enterWorkspace(data.user);
       else authMessage("Account created. Check your email to confirm, then return here and sign in.");
