@@ -8,10 +8,11 @@ let state = loadState();
 let currentPreview = null;
 let editingDocumentId = null;
 let editingCustomer = null;
+let showingArchivedCustomers = false;
 
 function loadState(){
-  try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved ? {...saved,customers:saved.customers||[]} : {settings:{...defaults},documents:[],customers:[]}; }
-  catch { return {settings:{...defaults},documents:[],customers:[]}; }
+  try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved ? {...saved,customers:saved.customers||[],pendingCustomerDeletions:saved.pendingCustomerDeletions||[]} : {settings:{...defaults},documents:[],customers:[],pendingCustomerDeletions:[]}; }
+  catch { return {settings:{...defaults},documents:[],customers:[],pendingCustomerDeletions:[]}; }
 }
 function persist(){ localStorage.setItem(STORE, JSON.stringify(state)); renderAll(); }
 function money(value){ return new Intl.NumberFormat("en-JM",{style:"currency",currency:state.settings.currency||"JMD",minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0); }
@@ -22,6 +23,10 @@ function sameCustomer(a,b){
   if(emailA&&emailB)return emailA===emailB;
   const nameA=String(a?.name||"").trim().toLowerCase(),nameB=String(b?.name||"").trim().toLowerCase();
   return Boolean(nameA&&nameB&&nameA===nameB);
+}
+function pendingCustomerDeletionMatches(deletion,customer){
+  if(deletion&&typeof deletion==="object")return deletion.id!=null&&deletion.id===customer.id||sameCustomer(deletion,customer);
+  return deletion===customer.id;
 }
 function activeSectionStorageKey(){
   return `${ACTIVE_SECTION_STORE}:${activeUser?activeUser.id:"guest"}`;
@@ -63,9 +68,10 @@ function populateCustomerChoices(){
   const select=$("#existing-customer");
   if(!select)return;
   const unique=new Map();
+  const archivedCustomers=(state.customers||[]).filter(c=>c.archivedAt);
   const sources=[
-    ...(state.customers||[]),
-    ...(state.documents||[]).map(d=>d.customer||{})
+    ...(state.customers||[]).filter(c=>!c.archivedAt),
+    ...(state.documents||[]).map(d=>d.customer||{}).filter(c=>!archivedCustomers.some(archived=>sameCustomer(archived,c)))
   ];
   sources.forEach(c=>{
     const email=(c.email||"").trim().toLowerCase();
@@ -227,6 +233,52 @@ function renderDocuments(){
   $$("[data-delete]",$("#documents-table")).forEach(b=>b.onclick=()=>deleteDocument(b.dataset.delete));
 }
 function deleteDocument(id){if(!confirm("Delete this saved document? This cannot be undone."))return;state.documents=state.documents.filter(d=>d.id!==id);persist();toast("Document deleted");}
+function customerDocumentCount(customer){
+  return (state.documents||[]).filter(doc=>sameCustomer(customer,doc.customer||{})).length;
+}
+function customerRecordMatches(record,customer){
+  return customer.id!=null?record.id===customer.id:sameCustomer(record,customer);
+}
+function archiveCustomer(customer){
+  const records=state.customers.filter(c=>sameCustomer(c,customer));
+  if(records.length&&records.every(c=>c.archivedAt))return;
+  if(!confirm(`Archive ${customer.name||"this customer"}? Their saved documents will be kept in your records.`))return;
+  const archivedAt=new Date().toISOString();
+  if(records.length)records.forEach(record=>record.archivedAt=archivedAt);
+  else state.customers.unshift({id:customer.id||(crypto.randomUUID?crypto.randomUUID():String(Date.now())),name:customer.name||"",email:customer.email||"",phone:customer.phone||"",address:customer.address||"",archivedAt});
+  persist();
+  toast("Customer archived");
+}
+function restoreCustomer(customer){
+  const record=state.customers.find(c=>customerRecordMatches(c,customer));
+  if(!record)return;
+  const matchingRecords=state.customers.filter(c=>sameCustomer(c,record));
+  if(state.customers.some(c=>c.id!==record.id&&!c.archivedAt&&sameCustomer(c,record))){
+    alert("This customer cannot be restored because an active customer already has the same email or name.");
+    return;
+  }
+  matchingRecords.forEach(c=>c.archivedAt=null);
+  persist();
+  toast("Customer restored");
+}
+function deleteCustomer(customer){
+  const documentCount=customerDocumentCount(customer),name=customer.name||"This customer";
+  if(documentCount){
+    alert(`${name} has ${documentCount} saved document${documentCount===1?"":"s"}. Permanent deletion is blocked. Archive this customer to keep the document history.`);
+    return;
+  }
+  if(!confirm(`Permanently delete ${name}? This cannot be undone.`))return;
+  const deletedRecords=state.customers.filter(c=>sameCustomer(c,customer));
+  if(!deletedRecords.length)deletedRecords.push(customer);
+  state.pendingCustomerDeletions=state.pendingCustomerDeletions||[];
+  deletedRecords.forEach(record=>{
+    const deletion={id:record.id??null,name:record.name||customer.name||"",email:record.email||customer.email||""};
+    if(!state.pendingCustomerDeletions.some(pending=>pendingCustomerDeletionMatches(pending,deletion)))state.pendingCustomerDeletions.push(deletion);
+  });
+  state.customers=state.customers.filter(c=>!sameCustomer(c,customer));
+  persist();
+  toast("Customer permanently deleted");
+}
 function renderCustomers(){
   if(!$("#customers-table"))return;
   const customers=[];
@@ -241,11 +293,19 @@ function renderCustomers(){
     else customers[matchIndex]={...docCustomer,...customers[matchIndex],name:customers[matchIndex].name||docCustomer.name,email:customers[matchIndex].email||docCustomer.email,phone:customers[matchIndex].phone||docCustomer.phone,address:customers[matchIndex].address||docCustomer.address};
   });
   const q=($("#customer-search")?.value||"").toLowerCase();
-  const visibleCustomers=customers.map(c=>({...c,count:(state.documents||[]).filter(d=>sameCustomer(c,d.customer||{})).length})).filter(c=>`${c.name||""} ${c.email||""} ${c.phone||""}`.toLowerCase().includes(q));
-  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button> <button type="button" class="row-action" data-edit-customer-index="${index}">Edit</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td></tr>`).join("");
+  const visibleCustomers=customers.map(c=>({...c,count:customerDocumentCount(c)})).filter(c=>Boolean(c.archivedAt)===showingArchivedCustomers&&`${c.name||""} ${c.email||""} ${c.phone||""}`.toLowerCase().includes(q));
+  const archivedCount=customers.filter(c=>c.archivedAt).length;
+  $("#customers-list-title").textContent=showingArchivedCustomers?"Archived customers":"Customer list";
+  $("#customers-archived-toggle").textContent=showingArchivedCustomers?"View active customers":`View archived (${archivedCount})`;
+  $("#customers-empty-title").textContent=showingArchivedCustomers?"No archived customers":"No customers yet";
+  $("#customers-empty-copy").textContent=showingArchivedCustomers?"Archived customers will appear here.":"Add your first customer to get started.";
+  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td><td>${showingArchivedCustomers?`<button type="button" class="row-action" data-restore-customer-index="${index}">Restore</button>`:`<button type="button" class="row-action" data-edit-customer-index="${index}">Edit</button> <button type="button" class="row-action" data-archive-customer-index="${index}">Archive</button>`} <button type="button" class="row-action" data-delete-customer-index="${index}" style="color:#c46a62">Delete</button></td></tr>`).join("");
   $("#customers-empty").style.display=visibleCustomers.length?"none":"flex";
   $$("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
   $$("[data-edit-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>editCustomer(visibleCustomers[Number(button.dataset.editCustomerIndex)]));
+  $$("[data-archive-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>archiveCustomer(visibleCustomers[Number(button.dataset.archiveCustomerIndex)]));
+  $$("[data-restore-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>restoreCustomer(visibleCustomers[Number(button.dataset.restoreCustomerIndex)]));
+  $$("[data-delete-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>deleteCustomer(visibleCustomers[Number(button.dataset.deleteCustomerIndex)]));
 }
 function showCustomerDetails(customer){
   const docs=(state.documents||[]).filter(d=>sameCustomer(customer,d.customer||{}));
@@ -295,6 +355,7 @@ $("#doc-tax").addEventListener("input",updateTotals);
 $("#document-search").addEventListener("input",renderDocuments);
 $("#document-filter").addEventListener("change",()=>showView("documents"));
 $("#customer-search").addEventListener("input",renderCustomers);
+$("#customers-archived-toggle").addEventListener("click",()=>{showingArchivedCustomers=!showingArchivedCustomers;renderCustomers();});
 $("#settings-form").addEventListener("submit",saveSettings);
 $("#print-document").onclick=()=>window.print();
 $("#help-button").onclick=()=>openModal("help-modal");
@@ -379,7 +440,28 @@ async function loadCloudState(){
   });
   state.settings={...state.settings,businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD"};
   state.documents=cloudDocs;
-  state.customers=(customersRes.data||[]).map(c=>({id:c.id,name:c.name||"",email:c.email||"",phone:c.phone||"",address:c.address||""}));
+  const pendingDeletions=state.pendingCustomerDeletions||[];
+  state.customers=(customersRes.data||[]).filter(c=>!pendingDeletions.some(deletion=>pendingCustomerDeletionMatches(deletion,c))).map(c=>({id:c.id,name:c.name||"",email:c.email||"",phone:c.phone||"",address:c.address||"",archivedAt:c.archived_at||null}));
+}
+async function syncPendingCustomerDeletions(knownCustomers){
+  if(!state.pendingCustomerDeletions?.length)return;
+  if(!knownCustomers){
+    const {data,error}=await supabaseClient.from("customers").select("*").eq("business_id",activeBusiness.id);
+    if(error)throw error;
+    knownCustomers=data||[];
+  }
+  for(const deletion of [...state.pendingCustomerDeletions]){
+    const customer=knownCustomers.find(c=>pendingCustomerDeletionMatches(deletion,c));
+    if(customer&&state.documents.some(doc=>doc.customer?.id===customer.id||sameCustomer(doc.customer||{},customer))){
+      throw new Error(`Customer ${customer.name||""} still has saved documents and cannot be permanently deleted.`);
+    }
+    if(customer){
+      const {error}=await supabaseClient.from("customers").delete().eq("id",customer.id).eq("business_id",activeBusiness.id);
+      if(error)throw error;
+    }
+    state.pendingCustomerDeletions=state.pendingCustomerDeletions.filter(item=>item!==deletion);
+  }
+  localStorage.setItem(STORE,JSON.stringify(state));
 }
 async function syncCloudState(){
   if(!cloudReady||!activeBusiness||!activeUser)return;
@@ -395,7 +477,7 @@ async function syncCloudState(){
   const knownCustomers=customerRows.data||[];
   for(const saved of (state.customers||[])){
     const match=knownCustomers.find(c=>c.id===saved.id)||knownCustomers.find(c=>c.name===saved.name && (c.email||"")===(saved.email||""));
-    const payload={business_id:businessId,name:saved.name,email:saved.email||null,phone:saved.phone||null,address:saved.address||null};
+    const payload={business_id:businessId,name:saved.name,email:saved.email||null,phone:saved.phone||null,address:saved.address||null,archived_at:saved.archivedAt||null};
     if(match){
       const {error}=await supabaseClient.from("customers").update(payload).eq("id",match.id);
       if(error) throw error;
@@ -444,6 +526,7 @@ async function syncCloudState(){
     const {error}=await supabaseClient.from("documents").delete().in("id",removed);
     if(error) throw error;
   }
+  await syncPendingCustomerDeletions(knownCustomers);
   localStorage.setItem(STORE,JSON.stringify(state));
 }
 const localPersist = persist;
@@ -472,6 +555,12 @@ async function enterWorkspace(user){
     loadSettings();
     renderAll();
     restoreActiveSection();
+    if(state.pendingCustomerDeletions.length){
+      syncPendingCustomerDeletions().then(()=>toast("Customer deletion synced")).catch(error=>{
+        console.error("BizFlow customer deletion:",error);
+        toast("Customer deletion needs cloud attention");
+      });
+    }
   }catch(error){
     console.error("BizFlow setup:",error);
     authMessage("We couldn't load your business data: "+(error.message||"Please check your Supabase tables and policies."),true);

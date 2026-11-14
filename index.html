@@ -107,7 +107,7 @@
 
       <section class="view" id="view-customers">
         <div class="page-heading"><div><p class="eyebrow">PEOPLE YOU WORK WITH</p><h1>Customers<span class="heading-dot">.</span></h1><p class="muted">Save customer details and reuse them in your business records.</p></div><button class="button primary" id="customer-create">＋ Add customer</button></div>
-        <div class="panel table-panel"><div class="table-toolbar"><div><h2>Customer list</h2><p class="muted small-text">Your saved customer contacts.</p></div><div class="search-wrap"><span>⌕</span><input id="customer-search" placeholder="Search customers..." aria-label="Search customers"></div></div><div class="table-scroll"><table><thead><tr><th>CUSTOMER</th><th>EMAIL</th><th>PHONE</th><th>DOCUMENTS</th></tr></thead><tbody id="customers-table"></tbody></table></div><div id="customers-empty" class="empty-state compact"><div class="empty-illustration">♙</div><strong>No customers yet</strong><p>Add your first customer to get started.</p></div></div>
+        <div class="panel table-panel"><div class="table-toolbar"><div><h2 id="customers-list-title">Customer list</h2><p class="muted small-text">Your saved customer contacts.</p></div><button type="button" class="button secondary small" id="customers-archived-toggle">View archived</button><div class="search-wrap"><span>⌕</span><input id="customer-search" placeholder="Search customers..." aria-label="Search customers"></div></div><div class="table-scroll"><table><thead><tr><th>CUSTOMER</th><th>EMAIL</th><th>PHONE</th><th>DOCUMENTS</th><th>ACTIONS</th></tr></thead><tbody id="customers-table"></tbody></table></div><div id="customers-empty" class="empty-state compact"><div class="empty-illustration">♙</div><strong id="customers-empty-title">No customers yet</strong><p id="customers-empty-copy">Add your first customer to get started.</p></div></div>
       </section>
 
       <section class="view" id="view-settings">
@@ -172,6 +172,6 @@
   <div class="modal-backdrop" id="help-modal" aria-hidden="true"><section class="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title"><div class="modal-header"><div><p class="eyebrow">A QUICK GUIDE</p><h2 id="help-title">Welcome to BizFlow</h2></div><button class="icon-button" data-close="help-modal" aria-label="Close">×</button></div><div class="help-content"><p>BizFlow helps you prepare clear business documents in a few steps.</p><ol><li>Open <strong>Business settings</strong> and add your business name.</li><li>Select <strong>Create document</strong> and choose an invoice, quotation or receipt.</li><li>Add your customer and line items. BizFlow calculates the total.</li><li>Save the document, then print it or save it as a PDF.</li></ol><p class="notice">Prototype note: documents are stored only in this browser on this device. Export or print important records and do not use this prototype as your only business record.</p></div><div class="modal-footer"><button class="button primary" data-close="help-modal">Got it</button></div></section></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=20261113-nav-persistence1"></script>
+  <script src="app.js?v=20261113-customer-archive1"></script>
 </body>
 </html>
