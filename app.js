@@ -551,6 +551,7 @@ async function enterWorkspace(user){
     }
     cloudReady=true;
     document.body.classList.add("authenticated");
+    document.body.classList.remove("auth-checking");
     $("#profile-name").textContent=state.settings.businessName||user.email||"Your business";
     loadSettings();
     renderAll();
@@ -565,6 +566,7 @@ async function enterWorkspace(user){
     console.error("BizFlow setup:",error);
     authMessage("We couldn't load your business data: "+(error.message||"Please check your Supabase tables and policies."),true);
     document.body.classList.remove("authenticated");
+    document.body.classList.remove("auth-checking");
   }
 }
 async function handleAuthSubmit(event){
@@ -613,7 +615,11 @@ async function handleAuthSubmit(event){
   finally{$("#auth-submit").disabled=false;}
 }
 async function initAuth(){
-  if(SUPABASE_PUBLISHABLE_KEY==="PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"){authMessage("Add your Supabase publishable key to finish connecting BizFlow.",true);return;}
+  if(SUPABASE_PUBLISHABLE_KEY==="PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"){
+    document.body.classList.remove("auth-checking");
+    authMessage("Add your Supabase publishable key to finish connecting BizFlow.",true);
+    return;
+  }
   $("#auth-form").addEventListener("submit",handleAuthSubmit);
   $("#auth-switch").addEventListener("click",()=>setAuthMode(authMode==="signin"?"signup":"signin"));
   $("#forgot-password").addEventListener("click",()=>setAuthMode("forgot"));
@@ -634,15 +640,31 @@ async function initAuth(){
     if(error){toast("Could not sign out: "+error.message);return;}
     activeUser=null;activeBusiness=null;document.body.classList.remove("authenticated");setAuthMode("signin");
   });
-  const {data,error}=await supabaseClient.auth.getSession();
-  if(error){authMessage(error.message,true);return;}
+  let sessionResult;
+  try{
+    sessionResult=await supabaseClient.auth.getSession();
+  }catch(error){
+    document.body.classList.remove("auth-checking");
+    authMessage(error.message||"We couldn't verify your sign-in. Please try again.",true);
+    return;
+  }
+  const {data,error}=sessionResult;
+  if(error){
+    document.body.classList.remove("auth-checking");
+    authMessage(error.message||"We couldn't verify your sign-in. Please try again.",true);
+    return;
+  }
   await new Promise(resolve=>setTimeout(resolve,0));
   if(passwordRecoveryMode){
     passwordRecoveryUser=passwordRecoveryUser||data.session?.user||null;
+    document.body.classList.remove("auth-checking");
     return;
   }
   if(data.session) await enterWorkspace(data.session.user);
-  else setAuthMode("signin");
+  else{
+    setAuthMode("signin");
+    document.body.classList.remove("auth-checking");
+  }
 }
 
 initAuth();
