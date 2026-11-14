@@ -10,6 +10,7 @@
 .auth-brand strong,.auth-brand small{display:block}.auth-brand strong{font:800 19px Manrope}.auth-brand small{font-size:9px;letter-spacing:2px;color:#8497a8;font-weight:700}
 .auth-card h1{font:800 28px Manrope;color:#1b344d;margin:0}.auth-copy{font-size:12px;line-height:1.6;color:#7b8b9a;margin:9px 0 22px}
 .auth-card label{display:flex;flex-direction:column;gap:7px;font-size:10px;font-weight:700;color:#52677b;margin:14px 0}
+.auth-card label[hidden]{display:none}
 .auth-card input{width:100%;border:1px solid #dfe7ed;border-radius:7px;padding:12px;font:12px "DM Sans",sans-serif;color:#304a62}
 .auth-submit{width:100%;margin-top:8px;padding:13px}
 .auth-message{min-height:18px;font-size:11px;line-height:1.5;color:#0b887c}

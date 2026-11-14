@@ -261,6 +261,8 @@ let activeUser = null;
 let activeBusiness = null;
 let cloudReady = false;
 let authMode = "signin";
+let passwordRecoveryMode = false;
+let passwordRecoveryUser = null;
 
 function authMessage(message, isError=false){
   const el = $("#auth-message");
@@ -268,11 +270,17 @@ function authMessage(message, isError=false){
 }
 function setAuthMode(mode){
   authMode=mode;
-  $("#auth-title").textContent=mode==="signup"?"Create your account.":"Welcome back.";
-  $("#auth-copy").textContent=mode==="signup"?"Create a secure BizFlow account for your business.":"Sign in to access your business documents from any device.";
-  $("#auth-submit").textContent=mode==="signup"?"Create account":"Sign in";
-  $("#auth-switch").textContent=mode==="signup"?"Already have an account? Sign in":"New to BizFlow? Create an account";
-  $("#auth-password").autocomplete=mode==="signup"?"new-password":"current-password";
+  const isRecovery=mode==="recovery";
+  $("#auth-title").textContent=isRecovery?"Set New Password":mode==="signup"?"Create your account.":"Welcome back.";
+  $("#auth-copy").textContent=isRecovery?"Choose a new password for your BizFlow account.":mode==="signup"?"Create a secure BizFlow account for your business.":"Sign in to access your business documents from any device.";
+  $("#auth-submit").textContent=isRecovery?"Update password":mode==="signup"?"Create account":"Sign in";
+  $("#auth-switch").hidden=isRecovery;
+  $("#auth-email-label").hidden=isRecovery;
+  $("#auth-email").required=!isRecovery;
+  $("#auth-password-label").firstChild.textContent=isRecovery?"New password":"Password";
+  $("#auth-password").autocomplete=isRecovery||mode==="signup"?"new-password":"current-password";
+  $("#auth-confirm-password-label").hidden=!isRecovery;
+  $("#auth-confirm-password").required=isRecovery;
   authMessage("");
 }
 async function ensureBusiness(){
@@ -409,11 +417,28 @@ async function enterWorkspace(user){
 }
 async function handleAuthSubmit(event){
   event.preventDefault();
+  if(authMode==="recovery"&&$("#auth-password").value!==$("#auth-confirm-password").value){
+    authMessage("The passwords do not match.",true);
+    return;
+  }
   const email=$("#auth-email").value.trim(),password=$("#auth-password").value;
   $("#auth-submit").disabled=true;
-  authMessage(authMode==="signup"?"Creating your account…":"Signing in…");
+  authMessage(authMode==="recovery"?"Updating your password…":authMode==="signup"?"Creating your account…":"Signing in…");
   try{
-    if(authMode==="signup"){
+    if(authMode==="recovery"){
+      const {data,error}=await supabaseClient.auth.updateUser({password});
+      if(error) throw error;
+      passwordRecoveryMode=false;
+      $("#auth-form").reset();
+      const user=data.user||passwordRecoveryUser;
+      setAuthMode("signin");
+      if(user){
+        $("#auth-email").value=user.email||"";
+        authMessage("Password updated successfully.");
+        await enterWorkspace(user);
+      }else authMessage("Password updated successfully. Sign in with your new password.");
+      toast("Password updated successfully.");
+    }else if(authMode==="signup"){
       const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:"https://rush2348.github.io/bizflow-jamaica/"}});
       if(error) throw error;
       if(data.session) await enterWorkspace(data.user);
@@ -430,6 +455,17 @@ async function initAuth(){
   if(SUPABASE_PUBLISHABLE_KEY==="PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"){authMessage("Add your Supabase publishable key to finish connecting BizFlow.",true);return;}
   $("#auth-form").addEventListener("submit",handleAuthSubmit);
   $("#auth-switch").addEventListener("click",()=>setAuthMode(authMode==="signin"?"signup":"signin"));
+  if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery"){
+    passwordRecoveryMode=true;
+    setAuthMode("recovery");
+  }
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if(event==="PASSWORD_RECOVERY"){
+      passwordRecoveryMode=true;
+      passwordRecoveryUser=session?.user||null;
+      setAuthMode("recovery");
+    }
+  });
   $("#signout-button").addEventListener("click",async()=>{
     cloudReady=false;
     const {error}=await supabaseClient.auth.signOut();
@@ -438,6 +474,11 @@ async function initAuth(){
   });
   const {data,error}=await supabaseClient.auth.getSession();
   if(error){authMessage(error.message,true);return;}
+  await new Promise(resolve=>setTimeout(resolve,0));
+  if(passwordRecoveryMode){
+    passwordRecoveryUser=passwordRecoveryUser||data.session?.user||null;
+    return;
+  }
   if(data.session) await enterWorkspace(data.session.user);
   else setAuthMode("signin");
 }
