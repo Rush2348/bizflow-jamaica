@@ -5,6 +5,7 @@ const defaults = {businessName:"",email:"",phone:"",trn:"",address:"",currency:"
 let state = loadState();
 let currentPreview = null;
 let editingDocumentId = null;
+let editingCustomer = null;
 
 function loadState(){
   try { const saved = JSON.parse(localStorage.getItem(STORE)); return saved ? {...saved,customers:saved.customers||[]} : {settings:{...defaults},documents:[],customers:[]}; }
@@ -74,15 +75,43 @@ function fillSelectedCustomer(){
   $("#customer-address").value=option.dataset.address||"";
 }
 function newCustomer(){
-  $("#customer-form").reset(); $("#customer-form-error").textContent=""; openModal("customer-modal");
+  editingCustomer=null;
+  $("#customer-form").reset();
+  $("#customer-modal-title").textContent="Add customer";
+  $("#customer-form-submit").textContent="Save customer";
+  $("#customer-form-error").textContent="";
+  openModal("customer-modal");
+}
+function editCustomer(customer){
+  editingCustomer={...customer};
+  $("#customer-form").reset();
+  $("#new-customer-name").value=customer.name||"";
+  $("#new-customer-email").value=customer.email||"";
+  $("#new-customer-phone").value=customer.phone||"";
+  $("#new-customer-address").value=customer.address||"";
+  $("#customer-modal-title").textContent="Edit customer";
+  $("#customer-form-submit").textContent="Save changes";
+  $("#customer-form-error").textContent="";
+  openModal("customer-modal");
 }
 function saveCustomer(event){
   event.preventDefault();
-  const customer={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$("#new-customer-name").value.trim(),email:$("#new-customer-email").value.trim(),phone:$("#new-customer-phone").value.trim(),address:$("#new-customer-address").value.trim()};
+  const customer={id:editingCustomer?.id||(crypto.randomUUID?crypto.randomUUID():String(Date.now())),name:$("#new-customer-name").value.trim(),email:$("#new-customer-email").value.trim(),phone:$("#new-customer-phone").value.trim(),address:$("#new-customer-address").value.trim()};
   if(!customer.name){$("#customer-form-error").textContent="Please enter a customer name.";return;}
-  const key=c=>`${c.name.toLowerCase()}|${(c.email||"").toLowerCase()}`;
-  if(state.customers.some(c=>key(c)===key(customer))){$("#customer-form-error").textContent="This customer is already saved.";return;}
-  state.customers.unshift(customer);persist();closeModal("customer-modal");toast("Customer saved successfully");
+  const existingIndex=editingCustomer?state.customers.findIndex(c=>editingCustomer.id!=null?c.id===editingCustomer.id:sameCustomer(c,editingCustomer)):-1;
+  const duplicate=editingCustomer
+    ?state.customers.some((c,index)=>index!==existingIndex&&sameCustomer(c,customer))
+    :state.customers.some(c=>`${c.name.toLowerCase()}|${(c.email||"").toLowerCase()}`===`${customer.name.toLowerCase()}|${(customer.email||"").toLowerCase()}`);
+  if(duplicate){$("#customer-form-error").textContent=editingCustomer?"Another customer already has these details.":"This customer is already saved.";return;}
+  if(editingCustomer){
+    if(existingIndex<0)state.customers.unshift(customer);
+    else state.customers[existingIndex]={...state.customers[existingIndex],...customer};
+    state.documents.forEach(doc=>{
+      if(sameCustomer(editingCustomer,doc.customer||{}))doc.customer={...doc.customer,name:customer.name,email:customer.email,phone:customer.phone,address:customer.address};
+    });
+  }else state.customers.unshift(customer);
+  editingCustomer=null;
+  persist();closeModal("customer-modal");toast("Customer saved successfully");
 }
 function newDocument(type="Invoice"){
   editingDocumentId = null;
@@ -191,9 +220,10 @@ function renderCustomers(){
   });
   const q=($("#customer-search")?.value||"").toLowerCase();
   const visibleCustomers=customers.map(c=>({...c,count:(state.documents||[]).filter(d=>sameCustomer(c,d.customer||{})).length})).filter(c=>`${c.name||""} ${c.email||""} ${c.phone||""}`.toLowerCase().includes(q));
-  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td></tr>`).join("");
+  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button> <button type="button" class="row-action" data-edit-customer-index="${index}">Edit</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td></tr>`).join("");
   $("#customers-empty").style.display=visibleCustomers.length?"none":"flex";
   $$("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
+  $$("[data-edit-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>editCustomer(visibleCustomers[Number(button.dataset.editCustomerIndex)]));
 }
 function showCustomerDetails(customer){
   const docs=(state.documents||[]).filter(d=>sameCustomer(customer,d.customer||{}));
@@ -319,7 +349,7 @@ async function loadCloudState(){
     const lines=(itemsByDoc.get(d.id)||[]).map(i=>({description:i.description,qty:Number(i.quantity),rate:Number(i.unit_price)}));
     return {
       id:d.id,type:d.document_type==="quotation"?"Quotation":d.document_type==="receipt"?"Receipt":"Invoice",
-      number:d.document_number||"",date:d.issue_date,customer:{name:c.name||"Customer",email:c.email||"",phone:c.phone||"",address:c.address||""},
+      number:d.document_number||"",date:d.issue_date,customer:{id:c.id,name:c.name||"Customer",email:c.email||"",phone:c.phone||"",address:c.address||""},
       lines,taxRate:Number(d.tax_rate)||0,subtotal:Number(d.subtotal)||0,tax:Number(d.tax_amount)||0,total:Number(d.total)||0,
       notes:d.notes||"",createdAt:d.created_at||new Date().toISOString(),
       business:{businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD",trn:""}
@@ -342,29 +372,34 @@ async function syncCloudState(){
   if(customerRows.error) throw customerRows.error;
   const knownCustomers=customerRows.data||[];
   for(const saved of (state.customers||[])){
-    const match=knownCustomers.find(c=>c.name===saved.name && (c.email||"")===(saved.email||""));
+    const match=knownCustomers.find(c=>c.id===saved.id)||knownCustomers.find(c=>c.name===saved.name && (c.email||"")===(saved.email||""));
     const payload={business_id:businessId,name:saved.name,email:saved.email||null,phone:saved.phone||null,address:saved.address||null};
     if(match){
       const {error}=await supabaseClient.from("customers").update(payload).eq("id",match.id);
       if(error) throw error;
+      Object.assign(match,payload);
+      saved.id=match.id;
     }else{
       const {data,error}=await supabaseClient.from("customers").insert(payload).select().single();
       if(error) throw error;
+      saved.id=data.id;
       knownCustomers.push(data);
     }
   }
   const localDocIds=state.documents.map(d=>d.id);
   for(const doc of state.documents){
-    let customer=knownCustomers.find(c=>c.name===doc.customer.name && (c.email||"")===(doc.customer.email||""));
+    let customer=knownCustomers.find(c=>c.id===doc.customer.id)||knownCustomers.find(c=>c.name===doc.customer.name && (c.email||"")===(doc.customer.email||""));
     const customerPayload={business_id:businessId,name:doc.customer.name,email:doc.customer.email||null,phone:doc.customer.phone||null,address:doc.customer.address||null};
     if(customer){
       const {error}=await supabaseClient.from("customers").update(customerPayload).eq("id",customer.id);
       if(error) throw error;
+      Object.assign(customer,customerPayload);
     }else{
       const {data,error}=await supabaseClient.from("customers").insert(customerPayload).select().single();
       if(error) throw error;
       customer=data;knownCustomers.push(customer);
     }
+    doc.customer.id=customer.id;
     const docPayload={
       id:doc.id,business_id:businessId,customer_id:customer.id,
       document_type:doc.type.toLowerCase(),document_number:doc.number||null,issue_date:doc.date||null,
@@ -387,6 +422,7 @@ async function syncCloudState(){
     const {error}=await supabaseClient.from("documents").delete().in("id",removed);
     if(error) throw error;
   }
+  localStorage.setItem(STORE,JSON.stringify(state));
 }
 const localPersist = persist;
 persist = function(){
