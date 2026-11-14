@@ -271,13 +271,18 @@ function authMessage(message, isError=false){
 function setAuthMode(mode){
   authMode=mode;
   const isRecovery=mode==="recovery";
-  $("#auth-title").textContent=isRecovery?"Set New Password":mode==="signup"?"Create your account.":"Welcome back.";
-  $("#auth-copy").textContent=isRecovery?"Choose a new password for your BizFlow account.":mode==="signup"?"Create a secure BizFlow account for your business.":"Sign in to access your business documents from any device.";
-  $("#auth-submit").textContent=isRecovery?"Update password":mode==="signup"?"Create account":"Sign in";
+  const isForgot=mode==="forgot";
+  $("#auth-title").textContent=isRecovery?"Set New Password":isForgot?"Reset your password.":mode==="signup"?"Create your account.":"Welcome back.";
+  $("#auth-copy").textContent=isRecovery?"Choose a new password for your BizFlow account.":isForgot?"Enter your registered email address to receive a recovery link.":mode==="signup"?"Create a secure BizFlow account for your business.":"Sign in to access your business documents from any device.";
+  $("#auth-submit").textContent=isRecovery?"Update password":isForgot?"Send recovery email":mode==="signup"?"Create account":"Sign in";
   $("#auth-switch").hidden=isRecovery;
+  $("#auth-switch").textContent=isForgot?"Back to sign in":mode==="signup"?"Already have an account? Sign in":"New to BizFlow? Create an account";
+  $("#forgot-password").hidden=mode!=="signin";
   $("#auth-email-label").hidden=isRecovery;
   $("#auth-email").required=!isRecovery;
+  $("#auth-password-label").hidden=isForgot;
   $("#auth-password-label").firstChild.textContent=isRecovery?"New password":"Password";
+  $("#auth-password").required=!isForgot;
   $("#auth-password").autocomplete=isRecovery||mode==="signup"?"new-password":"current-password";
   $("#auth-confirm-password-label").hidden=!isRecovery;
   $("#auth-confirm-password").required=isRecovery;
@@ -417,15 +422,24 @@ async function enterWorkspace(user){
 }
 async function handleAuthSubmit(event){
   event.preventDefault();
+  const email=$("#auth-email").value.trim();
+  if(authMode==="forgot"&&(!email||!$("#auth-email").checkValidity())){
+    authMessage("Enter a valid email address.",true);
+    return;
+  }
   if(authMode==="recovery"&&$("#auth-password").value!==$("#auth-confirm-password").value){
     authMessage("The passwords do not match.",true);
     return;
   }
-  const email=$("#auth-email").value.trim(),password=$("#auth-password").value;
+  const password=$("#auth-password").value;
   $("#auth-submit").disabled=true;
-  authMessage(authMode==="recovery"?"Updating your password…":authMode==="signup"?"Creating your account…":"Signing in…");
+  authMessage(authMode==="recovery"?"Updating your password…":authMode==="forgot"?"Sending recovery email…":authMode==="signup"?"Creating your account…":"Signing in…");
   try{
-    if(authMode==="recovery"){
+    if(authMode==="forgot"){
+      const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:"https://bizflowja.pages.dev/"});
+      if(error) throw error;
+      authMessage("Password recovery email sent. Check your inbox.");
+    }else if(authMode==="recovery"){
       const {data,error}=await supabaseClient.auth.updateUser({password});
       if(error) throw error;
       passwordRecoveryMode=false;
@@ -455,6 +469,7 @@ async function initAuth(){
   if(SUPABASE_PUBLISHABLE_KEY==="PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"){authMessage("Add your Supabase publishable key to finish connecting BizFlow.",true);return;}
   $("#auth-form").addEventListener("submit",handleAuthSubmit);
   $("#auth-switch").addEventListener("click",()=>setAuthMode(authMode==="signin"?"signup":"signin"));
+  $("#forgot-password").addEventListener("click",()=>setAuthMode("forgot"));
   if(new URLSearchParams(location.hash.slice(1)).get("type")==="recovery"){
     passwordRecoveryMode=true;
     setAuthMode("recovery");
