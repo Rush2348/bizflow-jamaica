@@ -1,6 +1,8 @@
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const STORE = "bizflow-jamaica-v1";
+const ACTIVE_SECTION_STORE = "bizflow-jamaica-active-section";
+const ACTIVE_SECTIONS = new Set(["dashboard","customers","documents","invoices","quotations","receipts","settings"]);
 const defaults = {businessName:"",email:"",phone:"",trn:"",address:"",currency:"JMD",tax:0};
 let state = loadState();
 let currentPreview = null;
@@ -21,13 +23,33 @@ function sameCustomer(a,b){
   const nameA=String(a?.name||"").trim().toLowerCase(),nameB=String(b?.name||"").trim().toLowerCase();
   return Boolean(nameA&&nameB&&nameA===nameB);
 }
+function activeSectionStorageKey(){
+  return `${ACTIVE_SECTION_STORE}:${activeUser?activeUser.id:"guest"}`;
+}
+function rememberActiveSection(section){
+  if(ACTIVE_SECTIONS.has(section))localStorage.setItem(activeSectionStorageKey(),section);
+}
+function sectionForDocumentFilter(filter){
+  return ({Invoice:"invoices",Quotation:"quotations",Receipt:"receipts"})[filter]||"documents";
+}
+function restoreActiveSection(){
+  const saved=localStorage.getItem(activeSectionStorageKey());
+  const section=ACTIVE_SECTIONS.has(saved)?saved:"dashboard";
+  const documentFilter=({invoices:"Invoice",quotations:"Quotation",receipts:"Receipt",documents:"All"})[section];
+  if(documentFilter)$("#document-filter").value=documentFilter;
+  showView(section==="invoices"||section==="quotations"||section==="receipts"||section==="documents"?"documents":section);
+}
 function toast(message){const el=$("#toast");el.textContent=message;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2600);}
 function showView(name){
   $$(".view").forEach(v=>v.classList.toggle("active",v.id===`view-${name}`));
   $$(".nav-link[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===name));
-  $("#breadcrumb-current").textContent=({dashboard:"Overview",documents:"Documents",customers:"Customers",settings:"Business settings",plans:"Plans"})[name]||"Overview";
+  const filter=name==="documents"?$("#document-filter").value:"All";
+  $("#breadcrumb-current").textContent=name==="documents"?({Invoice:"Invoices",Quotation:"Quotations",Receipt:"Receipts"})[filter]||"Documents":({dashboard:"Overview",customers:"Customers",settings:"Business settings",plans:"Plans"})[name]||"Overview";
   $("#sidebar").classList.remove("open");
-  if(name==="documents") renderDocuments();
+  if(name==="documents"){
+    renderDocuments();
+    rememberActiveSection(sectionForDocumentFilter(filter));
+  }else if(ACTIVE_SECTIONS.has(name))rememberActiveSection(name);
   if(name==="customers") renderCustomers();
 }
 function openModal(id){const el=$("#"+id);el.classList.add("open");el.setAttribute("aria-hidden","false");document.body.style.overflow="hidden";}
@@ -271,7 +293,7 @@ $("#add-line").onclick=()=>addLine();
 $("#document-form").addEventListener("submit",saveDocument);
 $("#doc-tax").addEventListener("input",updateTotals);
 $("#document-search").addEventListener("input",renderDocuments);
-$("#document-filter").addEventListener("change",renderDocuments);
+$("#document-filter").addEventListener("change",()=>showView("documents"));
 $("#customer-search").addEventListener("input",renderCustomers);
 $("#settings-form").addEventListener("submit",saveSettings);
 $("#print-document").onclick=()=>window.print();
@@ -449,7 +471,7 @@ async function enterWorkspace(user){
     $("#profile-name").textContent=state.settings.businessName||user.email||"Your business";
     loadSettings();
     renderAll();
-    if(!state.settings.businessName) showView("settings");
+    restoreActiveSection();
   }catch(error){
     console.error("BizFlow setup:",error);
     authMessage("We couldn't load your business data: "+(error.message||"Please check your Supabase tables and policies."),true);
