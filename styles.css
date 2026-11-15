@@ -31,3 +31,15 @@ body:not(.authenticated) .app-shell{display:none}
 @media(max-width:520px){.auth-card{padding:25px 21px}}
 
 .status-pill.paid{background:#e7f8f3;color:#16876f}.status-pill.unpaid{background:#fff4e8;color:#b77928}
+
+
+/* Compact per-customer three-dot actions menu */
+.customer-actions-menu{position:relative;display:inline-block}
+.customer-actions-menu>summary{list-style:none;width:30px;height:30px;display:grid;place-items:center;border:1px solid #e4eaf0;border-radius:7px;background:#fff;color:#63788b;font-size:20px;font-weight:700;line-height:1;cursor:pointer}
+.customer-actions-menu>summary::-webkit-details-marker{display:none}
+.customer-actions-menu[open]>summary,.customer-actions-menu>summary:hover{border-color:#b8dcd7;background:#f3fbf9;color:#0d9488}
+.customer-actions-dropdown{position:absolute;right:0;top:calc(100% + 5px);z-index:8;min-width:140px;padding:5px;background:#fff;border:1px solid #e5ebef;border-radius:8px;box-shadow:0 10px 28px rgba(16,42,67,.14);display:grid;gap:2px}
+.customer-actions-dropdown button{width:100%;border:0;border-radius:5px;background:#fff;padding:9px 10px;text-align:left;color:#425b70;font-size:11px;font-weight:600}
+.customer-actions-dropdown button:hover{background:#f3f8f8;color:#0d9488}
+.customer-actions-dropdown button.danger{color:#bd625b}
+.customer-actions-dropdown button.danger:hover{background:#fff3f2;color:#b94f48}
