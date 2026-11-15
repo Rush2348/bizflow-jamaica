@@ -98,3 +98,29 @@ td,td strong{font-size:11px}
   #print-area{zoom:.72!important;padding:6mm 7mm 5mm!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
+
+
+/* Slightly enlarge text throughout the app and every printed document */
+body{font-size:16px}
+.workspace-label,.brand small,.eyebrow,.table-toolbar select,.form-grid select,
+.settings-form label,.document-modal label,.auth-card label{font-size:12px}
+.nav-link,.breadcrumb,.muted,.button,.local-chip,.stat-top,.panel-heading p,
+.quick-action strong,.table-toolbar h2,.row-action,.settings-form input,
+.settings-form textarea,.document-modal input,.document-modal textarea,
+.document-modal select,.auth-card input,.auth-copy,.help-content{font-size:14px}
+.stat-card>small,.quick-action small,td,td strong,.doc-row-main strong,
+.doc-row-total,.paper-brand p,.paper-meta p,.paper-customer p,
+.paper-items td,.paper-totals div,.paper-notes,.paper-thanks{font-size:12px}
+th,.paper-items th,.paper-customer small,.paper-footer{font-size:10px}
+.paper-customer strong{font-size:13px}
+.paper-brand h2,.paper-meta h3{font-size:20px}
+.paper-totals .paper-grand{font-size:13px}
+@media print{
+  #print-area{font-size:11px!important;zoom:.74!important}
+  .paper-brand h2,.paper-meta h3{font-size:20px!important}
+  .paper-brand p,.paper-meta p,.paper-customer p,.paper-items td,
+  .paper-totals div,.paper-notes,.paper-thanks{font-size:10px!important}
+  .paper-customer small,.paper-items th,.paper-footer{font-size:9px!important}
+  .paper-customer strong{font-size:12px!important}
+  .paper-totals .paper-grand{font-size:12px!important}
+}
