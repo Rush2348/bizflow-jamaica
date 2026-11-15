@@ -302,13 +302,13 @@ function renderCustomers(){
   $("#customers-archived-toggle").textContent=showingArchivedCustomers?"View active customers":`View archived (${archivedCount})`;
   $("#customers-empty-title").textContent=showingArchivedCustomers?"No archived customers":"No customers yet";
   $("#customers-empty-copy").textContent=showingArchivedCustomers?"Archived customers will appear here.":"Add your first customer to get started.";
-  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td><td>${showingArchivedCustomers?`<button type="button" class="row-action" data-restore-customer-index="${index}">Restore</button>`:`<button type="button" class="row-action" data-edit-customer-index="${index}">Edit</button> <button type="button" class="row-action" data-archive-customer-index="${index}">Archive</button>`} <button type="button" class="row-action" data-delete-customer-index="${index}" style="color:#c46a62">Delete</button></td></tr>`).join("");
+  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td><td><details class="customer-actions-menu"><summary aria-label="Actions for ${escapeHtml(c.name||"customer")}" title="Customer actions">⋮</summary><div class="customer-actions-dropdown">${showingArchivedCustomers?`<button type="button" data-restore-customer-index="${index}">Restore</button>`:`<button type="button" data-edit-customer-index="${index}">Edit</button><button type="button" data-archive-customer-index="${index}">Archive</button>`}<button type="button" class="danger" data-delete-customer-index="${index}">Delete</button></div></details></td></tr>`).join("");
   $("#customers-empty").style.display=visibleCustomers.length?"none":"flex";
-  $$("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
-  $$("[data-edit-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>editCustomer(visibleCustomers[Number(button.dataset.editCustomerIndex)]));
-  $$("[data-archive-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>archiveCustomer(visibleCustomers[Number(button.dataset.archiveCustomerIndex)]));
-  $$("[data-restore-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>restoreCustomer(visibleCustomers[Number(button.dataset.restoreCustomerIndex)]));
-  $$("[data-delete-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>deleteCustomer(visibleCustomers[Number(button.dataset.deleteCustomerIndex)]));
+  $("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
+  $("[data-edit-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>editCustomer(visibleCustomers[Number(button.dataset.editCustomerIndex)]));
+  $("[data-archive-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>archiveCustomer(visibleCustomers[Number(button.dataset.archiveCustomerIndex)]));
+  $("[data-restore-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>restoreCustomer(visibleCustomers[Number(button.dataset.restoreCustomerIndex)]));
+  $("[data-delete-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>deleteCustomer(visibleCustomers[Number(button.dataset.deleteCustomerIndex)]));
 }
 function showCustomerDetails(customer){
   const docs=(state.documents||[]).filter(d=>sameCustomer(customer,d.customer||{}));
