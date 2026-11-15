@@ -29,3 +29,5 @@ body.authenticated .auth-screen{display:none}
 body:not(.authenticated) .app-shell{display:none}
 .signout-button{border:1px solid #e2e9ee;border-radius:6px;background:#fff;color:#607487;font-size:10px;font-weight:700;padding:7px 10px}
 @media(max-width:520px){.auth-card{padding:25px 21px}}
+
+.status-pill.paid{background:#e7f8f3;color:#16876f}.status-pill.unpaid{background:#fff4e8;color:#b77928}
