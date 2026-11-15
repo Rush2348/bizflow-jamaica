@@ -210,6 +210,7 @@ function saveDocument(event){
   if(existing){state.documents=state.documents.map(d=>d.id===doc.id?doc:d);}else{state.documents.unshift(doc);}
   editingDocumentId=null;persist();closeModal("document-modal");toast(`${type} ${existing?"updated":"saved"} successfully`);previewDocument(doc.id);
 }
+function documentStatus(doc){return doc.status==="Paid"||(!doc.status&&doc.type==="Receipt")?"Paid":"Unpaid";}
 function renderAll(){renderDashboard();renderDocuments();renderCustomers();$("#profile-name").textContent=state.settings.businessName||"Your business";}
 function renderDashboard(){
   const docs=state.documents;
@@ -221,14 +222,14 @@ function renderDashboard(){
   const el=$("#recent-list");
   if(!recent.length){el.className="document-list empty-state";el.innerHTML='<div class="empty-illustration">▤</div><strong>No documents yet</strong><p>Create your first invoice, quote or receipt to get started.</p><button class="button secondary small" id="empty-create">Create first document</button>';$("#empty-create").onclick=()=>newDocument();return;}
   el.className="document-list";
-  el.innerHTML=recent.map(d=>`<div class="doc-row"><span class="doc-type-icon">${d.type==="Invoice"?"↗":d.type==="Quotation"?"☷":"✓"}</span><div class="doc-row-main"><strong>${escapeHtml(d.number)} · ${escapeHtml(d.customer.name)}</strong><small>${escapeHtml(d.type)} · ${dateText(d.date)} · ${d.status==="Paid"?"Paid":"Unpaid"}</small></div><span class="doc-row-total">${money(d.total)}</span><button class="row-action" data-preview="${d.id}">View</button></div>`).join("");
+  el.innerHTML=recent.map(d=>`<div class="doc-row"><span class="doc-type-icon">${d.type==="Invoice"?"↗":d.type==="Quotation"?"☷":"✓"}</span><div class="doc-row-main"><strong>${escapeHtml(d.number)} · ${escapeHtml(d.customer.name)}</strong><small>${escapeHtml(d.type)} · ${dateText(d.date)} · ${documentStatus(d)}</small></div><span class="doc-row-total">${money(d.total)}</span><button class="row-action" data-preview="${d.id}">View</button></div>`).join("");
   $$("[data-preview]",el).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
 }
 function renderDocuments(){
   if(!$("#documents-table"))return;
   const q=($("#document-search")?.value||"").toLowerCase(),filter=$("#document-filter")?.value||"All";
   const docs=state.documents.filter(d=>(filter==="All"||d.type===filter)&&(`${d.number} ${d.customer.name} ${d.type}`).toLowerCase().includes(q));
-  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill ${d.status==="Paid"?"paid":"unpaid"}">${d.status==="Paid"?"Paid":"Unpaid"}</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
+  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill ${documentStatus(d)==="Paid"?"paid":"unpaid"}">${documentStatus(d)}</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
   $("#documents-empty").style.display=docs.length?"none":"flex";
   $$("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
   $$("[data-edit]",$("#documents-table")).forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
@@ -314,7 +315,7 @@ function showCustomerDetails(customer){
   $("#customer-details-title").textContent=customer.name||"Customer";
   const address=escapeHtml(customer.address||"—").replace(/\n/g,"<br>");
   const docsContent=docs.length
-    ?`<h3>Documents</h3><div class="table-scroll"><table><thead><tr><th>NUMBER</th><th>TYPE</th><th>DATE</th><th>TOTAL</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.number||"—")}</td><td>${escapeHtml(d.type||"—")}</td><td>${escapeHtml(dateText(d.date))}</td><td>${escapeHtml(money(d.total))}</td><td><button type="button" class="row-action" data-customer-document-preview="${escapeHtml(d.id)}">View</button></td></tr>`).join("")}</tbody></table></div>`
+    ?`<h3>Documents</h3><div class="table-scroll"><table><thead><tr><th>NUMBER</th><th>TYPE</th><th>DATE</th><th>STATUS</th><th>TOTAL</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.number||"—")}</td><td>${escapeHtml(d.type||"—")}</td><td>${escapeHtml(dateText(d.date))}</td><td>${documentStatus(d)}</td><td>${escapeHtml(money(d.total))}</td><td><button type="button" class="row-action" data-customer-document-preview="${escapeHtml(d.id)}">View</button></td></tr>`).join("")}</tbody></table></div>`
     :"<p>No documents yet.</p>";
   $("#customer-detail-content").innerHTML=`<div class="form-grid two"><div><strong>Name</strong><p>${escapeHtml(customer.name||"—")}</p></div><div><strong>Email</strong><p>${escapeHtml(customer.email||"—")}</p></div><div><strong>Phone</strong><p>${escapeHtml(customer.phone||"—")}</p></div><div><strong>Address</strong><p>${address}</p></div></div><div class="form-section-title modal-section"><h3>Saved documents</h3></div>${docsContent}`;
   $$("[data-customer-document-preview]",$("#customer-detail-content")).forEach(button=>button.onclick=()=>{
