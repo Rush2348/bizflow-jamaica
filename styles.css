@@ -124,3 +124,9 @@ th,.paper-items th,.paper-customer small,.paper-footer{font-size:10px}
   .paper-customer strong{font-size:12px!important}
   .paper-totals .paper-grand{font-size:12px!important}
 }
+
+
+/* Customer action menu readability and tap target refinement */
+.customer-actions-menu>summary{width:34px;height:34px;font-size:22px}
+.customer-actions-dropdown{min-width:154px;padding:6px}
+.customer-actions-dropdown button{font-size:13px;padding:10px 11px;min-height:38px}
