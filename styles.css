@@ -29,3 +29,104 @@ body.authenticated .auth-screen{display:none}
 body:not(.authenticated) .app-shell{display:none}
 .signout-button{border:1px solid #e2e9ee;border-radius:6px;background:#fff;color:#607487;font-size:10px;font-weight:700;padding:7px 10px}
 @media(max-width:520px){.auth-card{padding:25px 21px}}
+
+.status-pill.paid{background:#e7f8f3;color:#16876f}.status-pill.unpaid{background:#fff4e8;color:#b77928}
+
+
+/* Compact per-customer three-dot actions menu */
+.customer-actions-menu{position:relative;display:inline-block}
+.customer-actions-menu>summary{list-style:none;width:30px;height:30px;display:grid;place-items:center;border:1px solid #e4eaf0;border-radius:7px;background:#fff;color:#63788b;font-size:20px;font-weight:700;line-height:1;cursor:pointer}
+.customer-actions-menu>summary::-webkit-details-marker{display:none}
+.customer-actions-menu[open]>summary,.customer-actions-menu>summary:hover{border-color:#b8dcd7;background:#f3fbf9;color:#0d9488}
+.customer-actions-dropdown{position:absolute;right:0;top:calc(100% + 5px);z-index:8;min-width:140px;padding:5px;background:#fff;border:1px solid #e5ebef;border-radius:8px;box-shadow:0 10px 28px rgba(16,42,67,.14);display:grid;gap:2px}
+.customer-actions-dropdown button{width:100%;border:0;border-radius:5px;background:#fff;padding:9px 10px;text-align:left;color:#425b70;font-size:11px;font-weight:600}
+.customer-actions-dropdown button:hover{background:#f3f8f8;color:#0d9488}
+.customer-actions-dropdown button.danger{color:#bd625b}
+.customer-actions-dropdown button.danger:hover{background:#fff3f2;color:#b94f48}
+
+
+/* Readability pass: slightly larger interface text */
+body{font-size:15px}
+.nav-link{font-size:14px}
+.breadcrumb{font-size:13px}
+.muted{font-size:13px}
+.button{font-size:13px}
+.button.small{font-size:12px}
+.stat-top{font-size:12px}
+.stat-card>small{font-size:11px}
+.panel-heading p{font-size:11px}
+.quick-action strong{font-size:12px}
+.quick-action small{font-size:10px}
+.table-toolbar select,.form-grid select{font-size:11px}
+.search-wrap input{font-size:11px}
+th{font-size:9px}
+td,td strong{font-size:11px}
+.row-action{font-size:11px}
+.settings-form label,.document-modal label{font-size:11px}
+.settings-form input,.settings-form textarea,.document-modal input,.document-modal textarea,.document-modal select{font-size:12px}
+.doc-row-main strong,.doc-row-total{font-size:11px}
+.doc-row-main small{font-size:10px}
+
+/* Print cleanly on one compact A5 page; never print app controls or menus */
+@page{size:A5 portrait;margin:0}
+@media print{
+  html,body{width:148mm!important;min-height:0!important;margin:0!important;padding:0!important;background:#fff!important}
+  body *{visibility:hidden!important}
+  #preview-modal,#preview-modal *{visibility:visible!important}
+  #preview-modal{display:block!important;position:absolute!important;inset:0 auto auto 0!important;width:100%!important;max-height:none!important;margin:0!important;padding:0!important;background:#fff!important;overflow:visible!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+  #preview-modal .modal-header,#preview-modal .modal-footer{display:none!important}
+  #print-area{display:block!important;width:100%!important;max-height:none!important;overflow:visible!important;padding:0!important;margin:0!important;font-size:10px!important;zoom:.82}
+  .paper-head{padding-bottom:8px!important;border-bottom-width:1px!important;gap:10px!important}
+  .paper-brand h2{font-size:18px!important;margin-bottom:3px!important}
+  .paper-brand p,.paper-meta p{font-size:9px!important;line-height:1.25!important;margin:1px 0!important}
+  .paper-meta h3{font-size:18px!important;margin-bottom:3px!important}
+  .paper-customer{margin:10px 0!important}
+  .paper-customer small{font-size:8px!important}
+  .paper-customer strong{font-size:11px!important;margin-top:3px!important}
+  .paper-customer p{font-size:9px!important;margin:2px 0!important}
+  .paper-items{margin:7px 0!important;page-break-inside:avoid!important;break-inside:avoid!important}
+  .paper-items th{font-size:8px!important;padding:5px 5px!important}
+  .paper-items td{font-size:9px!important;padding:5px 5px!important}
+  .paper-totals{width:175px!important}
+  .paper-totals div{font-size:9px!important;padding:2px 0!important}
+  .paper-totals .paper-grand{font-size:11px!important;padding-top:5px!important;margin-top:3px!important}
+  .paper-notes{font-size:9px!important;margin-top:8px!important;padding-top:5px!important}
+  .paper-thanks{font-size:9px!important;margin-top:10px!important}
+  .paper-footer{display:block!important;text-align:center!important;font-size:8px!important;color:#8292a0!important;margin-top:7px!important;padding-top:4px!important;border-top:1px solid #e7edf1!important}
+  #print-area>*{break-inside:avoid!important;page-break-inside:avoid!important}
+  .app-shell{display:block!important}
+  #print-area{zoom:.72!important;padding:6mm 7mm 5mm!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+
+
+/* Slightly enlarge text throughout the app and every printed document */
+body{font-size:16px}
+.workspace-label,.brand small,.eyebrow,.table-toolbar select,.form-grid select,
+.settings-form label,.document-modal label,.auth-card label{font-size:12px}
+.nav-link,.breadcrumb,.muted,.button,.local-chip,.stat-top,.panel-heading p,
+.quick-action strong,.table-toolbar h2,.row-action,.settings-form input,
+.settings-form textarea,.document-modal input,.document-modal textarea,
+.document-modal select,.auth-card input,.auth-copy,.help-content{font-size:14px}
+.stat-card>small,.quick-action small,td,td strong,.doc-row-main strong,
+.doc-row-total,.paper-brand p,.paper-meta p,.paper-customer p,
+.paper-items td,.paper-totals div,.paper-notes,.paper-thanks{font-size:12px}
+th,.paper-items th,.paper-customer small,.paper-footer{font-size:10px}
+.paper-customer strong{font-size:13px}
+.paper-brand h2,.paper-meta h3{font-size:20px}
+.paper-totals .paper-grand{font-size:13px}
+@media print{
+  #print-area{font-size:11px!important;zoom:.74!important}
+  .paper-brand h2,.paper-meta h3{font-size:20px!important}
+  .paper-brand p,.paper-meta p,.paper-customer p,.paper-items td,
+  .paper-totals div,.paper-notes,.paper-thanks{font-size:10px!important}
+  .paper-customer small,.paper-items th,.paper-footer{font-size:9px!important}
+  .paper-customer strong{font-size:12px!important}
+  .paper-totals .paper-grand{font-size:12px!important}
+}
+
+
+/* Customer action menu readability and tap target refinement */
+.customer-actions-menu>summary{width:34px;height:34px;font-size:22px}
+.customer-actions-dropdown{min-width:154px;padding:6px}
+.customer-actions-dropdown button{font-size:13px;padding:10px 11px;min-height:38px}

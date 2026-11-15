@@ -148,6 +148,7 @@ function newDocument(type="Invoice"){
   $("#doc-type").value=type;
   $("#doc-number").value=nextNumber(type);
   $("#doc-date").value=new Date().toISOString().slice(0,10);
+  $("#doc-status").value=type==="Receipt"?"Paid":"Unpaid";
   $("#doc-tax").value=state.settings.tax||0;
   $("#form-error").textContent="";
   $("#line-items").innerHTML="";
@@ -164,6 +165,7 @@ function editDocument(id){
   $("#doc-type").value=doc.type;
   $("#doc-number").value=doc.number;
   $("#doc-date").value=doc.date||new Date().toISOString().slice(0,10);
+  $("#doc-status").value=doc.status==="Paid"?"Paid":doc.status==="Unpaid"?"Unpaid":doc.type==="Receipt"?"Paid":"Unpaid";
   $("#customer-name").value=doc.customer?.name||"";
   $("#customer-email").value=doc.customer?.email||"";
   $("#customer-phone").value=doc.customer?.phone||"";
@@ -204,10 +206,11 @@ function saveDocument(event){
   if(!customer.name){$("#form-error").textContent="Please enter the customer or business name.";return;}
   if(!lines.length||lines.some(l=>!l.description||l.qty<=0||l.rate<0)){ $("#form-error").textContent="Add at least one complete item with a description and valid quantity.";return;}
   const existing=editingDocumentId?state.documents.find(d=>d.id===editingDocumentId):null;
-  const doc={id:existing?.id||(crypto.randomUUID?crypto.randomUUID():String(Date.now())),type,number:$("#doc-number").value,date:$("#doc-date").value,customer,lines,taxRate:Number($("#doc-tax").value)||0,...t,notes:$("#doc-notes").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),business:existing?.business||{...state.settings}};
+  const doc={id:existing?.id||(crypto.randomUUID?crypto.randomUUID():String(Date.now())),type,status:$("#doc-status").value==="Paid"?"Paid":"Unpaid",number:$("#doc-number").value,date:$("#doc-date").value,customer,lines,taxRate:Number($("#doc-tax").value)||0,...t,notes:$("#doc-notes").value.trim(),createdAt:existing?.createdAt||new Date().toISOString(),business:existing?.business||{...state.settings}};
   if(existing){state.documents=state.documents.map(d=>d.id===doc.id?doc:d);}else{state.documents.unshift(doc);}
   editingDocumentId=null;persist();closeModal("document-modal");toast(`${type} ${existing?"updated":"saved"} successfully`);previewDocument(doc.id);
 }
+function documentStatus(doc){return doc.status==="Paid"||(!doc.status&&doc.type==="Receipt")?"Paid":"Unpaid";}
 function renderAll(){renderDashboard();renderDocuments();renderCustomers();$("#profile-name").textContent=state.settings.businessName||"Your business";}
 function renderDashboard(){
   const docs=state.documents;
@@ -219,14 +222,14 @@ function renderDashboard(){
   const el=$("#recent-list");
   if(!recent.length){el.className="document-list empty-state";el.innerHTML='<div class="empty-illustration">▤</div><strong>No documents yet</strong><p>Create your first invoice, quote or receipt to get started.</p><button class="button secondary small" id="empty-create">Create first document</button>';$("#empty-create").onclick=()=>newDocument();return;}
   el.className="document-list";
-  el.innerHTML=recent.map(d=>`<div class="doc-row"><span class="doc-type-icon">${d.type==="Invoice"?"↗":d.type==="Quotation"?"☷":"✓"}</span><div class="doc-row-main"><strong>${escapeHtml(d.number)} · ${escapeHtml(d.customer.name)}</strong><small>${escapeHtml(d.type)} · ${dateText(d.date)}</small></div><span class="doc-row-total">${money(d.total)}</span><button class="row-action" data-preview="${d.id}">View</button></div>`).join("");
+  el.innerHTML=recent.map(d=>`<div class="doc-row"><span class="doc-type-icon">${d.type==="Invoice"?"↗":d.type==="Quotation"?"☷":"✓"}</span><div class="doc-row-main"><strong>${escapeHtml(d.number)} · ${escapeHtml(d.customer.name)}</strong><small>${escapeHtml(d.type)} · ${dateText(d.date)} · ${documentStatus(d)}</small></div><span class="doc-row-total">${money(d.total)}</span><button class="row-action" data-preview="${d.id}">View</button></div>`).join("");
   $$("[data-preview]",el).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
 }
 function renderDocuments(){
   if(!$("#documents-table"))return;
   const q=($("#document-search")?.value||"").toLowerCase(),filter=$("#document-filter")?.value||"All";
   const docs=state.documents.filter(d=>(filter==="All"||d.type===filter)&&(`${d.number} ${d.customer.name} ${d.type}`).toLowerCase().includes(q));
-  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill">Saved</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
+  $("#documents-table").innerHTML=docs.map(d=>`<tr><td><strong>${escapeHtml(d.number)}</strong><br><span class="muted">${escapeHtml(d.type)}</span></td><td>${escapeHtml(d.customer.name)}</td><td>${dateText(d.date)}</td><td><span class="status-pill ${documentStatus(d)==="Paid"?"paid":"unpaid"}">${documentStatus(d)}</span></td><td class="align-right"><strong>${money(d.total)}</strong></td><td><button class="row-action" data-preview="${d.id}">View</button> <button class="row-action" data-edit="${d.id}">Edit</button> <button class="row-action" data-delete="${d.id}" style="color:#c46a62">Delete</button></td></tr>`).join("");
   $("#documents-empty").style.display=docs.length?"none":"flex";
   $$("[data-preview]",$("#documents-table")).forEach(b=>b.onclick=()=>previewDocument(b.dataset.preview));
   $$("[data-edit]",$("#documents-table")).forEach(b=>b.onclick=()=>editDocument(b.dataset.edit));
@@ -299,7 +302,7 @@ function renderCustomers(){
   $("#customers-archived-toggle").textContent=showingArchivedCustomers?"View active customers":`View archived (${archivedCount})`;
   $("#customers-empty-title").textContent=showingArchivedCustomers?"No archived customers":"No customers yet";
   $("#customers-empty-copy").textContent=showingArchivedCustomers?"Archived customers will appear here.":"Add your first customer to get started.";
-  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td><td>${showingArchivedCustomers?`<button type="button" class="row-action" data-restore-customer-index="${index}">Restore</button>`:`<button type="button" class="row-action" data-edit-customer-index="${index}">Edit</button> <button type="button" class="row-action" data-archive-customer-index="${index}">Archive</button>`} <button type="button" class="row-action" data-delete-customer-index="${index}" style="color:#c46a62">Delete</button></td></tr>`).join("");
+  $("#customers-table").innerHTML=visibleCustomers.map((c,index)=>`<tr><td><button type="button" class="row-action" data-customer-index="${index}">${escapeHtml(c.name||"")}</button></td><td>${escapeHtml(c.email||"—")}</td><td>${escapeHtml(c.phone||"—")}</td><td>${c.count}</td><td><details class="customer-actions-menu"><summary aria-label="Actions for ${escapeHtml(c.name||"customer")}" title="Customer actions">⋮</summary><div class="customer-actions-dropdown">${showingArchivedCustomers?`<button type="button" data-restore-customer-index="${index}">Restore</button>`:`<button type="button" data-edit-customer-index="${index}">Edit</button><button type="button" data-archive-customer-index="${index}">Archive</button>`}<button type="button" class="danger" data-delete-customer-index="${index}">Delete</button></div></details></td></tr>`).join("");
   $("#customers-empty").style.display=visibleCustomers.length?"none":"flex";
   $$("[data-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>showCustomerDetails(visibleCustomers[Number(button.dataset.customerIndex)]));
   $$("[data-edit-customer-index]",$("#customers-table")).forEach(button=>button.onclick=()=>editCustomer(visibleCustomers[Number(button.dataset.editCustomerIndex)]));
@@ -312,7 +315,7 @@ function showCustomerDetails(customer){
   $("#customer-details-title").textContent=customer.name||"Customer";
   const address=escapeHtml(customer.address||"—").replace(/\n/g,"<br>");
   const docsContent=docs.length
-    ?`<h3>Documents</h3><div class="table-scroll"><table><thead><tr><th>NUMBER</th><th>TYPE</th><th>DATE</th><th>TOTAL</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.number||"—")}</td><td>${escapeHtml(d.type||"—")}</td><td>${escapeHtml(dateText(d.date))}</td><td>${escapeHtml(money(d.total))}</td><td><button type="button" class="row-action" data-customer-document-preview="${escapeHtml(d.id)}">View</button></td></tr>`).join("")}</tbody></table></div>`
+    ?`<h3>Documents</h3><div class="table-scroll"><table><thead><tr><th>NUMBER</th><th>TYPE</th><th>DATE</th><th>STATUS</th><th>TOTAL</th><th></th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.number||"—")}</td><td>${escapeHtml(d.type||"—")}</td><td>${escapeHtml(dateText(d.date))}</td><td>${documentStatus(d)}</td><td>${escapeHtml(money(d.total))}</td><td><button type="button" class="row-action" data-customer-document-preview="${escapeHtml(d.id)}">View</button></td></tr>`).join("")}</tbody></table></div>`
     :"<p>No documents yet.</p>";
   $("#customer-detail-content").innerHTML=`<div class="form-grid two"><div><strong>Name</strong><p>${escapeHtml(customer.name||"—")}</p></div><div><strong>Email</strong><p>${escapeHtml(customer.email||"—")}</p></div><div><strong>Phone</strong><p>${escapeHtml(customer.phone||"—")}</p></div><div><strong>Address</strong><p>${address}</p></div></div><div class="form-section-title modal-section"><h3>Saved documents</h3></div>${docsContent}`;
   $$("[data-customer-document-preview]",$("#customer-detail-content")).forEach(button=>button.onclick=()=>{
@@ -329,7 +332,7 @@ function previewDocument(id){
   const businessName=b.businessName||"Your business";
   const address=(b.address||"").replace(/\n/g,"<br>");
   const customerAddress=(d.customer.address||"").replace(/\n/g,"<br>");
-  $("#print-area").innerHTML=`<div class="paper-head"><div class="paper-brand"><h2>${escapeHtml(businessName)}</h2><p>${escapeHtml(address)}</p><p>${escapeHtml(b.email||"")}${b.phone?" · "+escapeHtml(b.phone):""}</p>${b.trn?`<p>TRN: ${escapeHtml(b.trn)}</p>`:""}</div><div class="paper-meta"><h3>${escapeHtml(d.type)}</h3><p><strong>${escapeHtml(d.number)}</strong></p><p>Date: ${dateText(d.date)}</p></div></div><div class="paper-customer"><small>${d.type==="Receipt"?"RECEIVED FROM":"PREPARED FOR"}</small><strong>${escapeHtml(d.customer.name)}</strong><p>${escapeHtml(d.customer.email||"")}</p><p>${escapeHtml(d.customer.phone||"")}</p><p>${customerAddress}</p></div><table class="paper-items"><thead><tr><th>DESCRIPTION</th><th>QTY</th><th>RATE</th><th class="align-right">AMOUNT</th></tr></thead><tbody>${d.lines.map(l=>`<tr><td>${escapeHtml(l.description)}</td><td>${l.qty}</td><td>${money(l.rate)}</td><td class="align-right">${money(l.qty*l.rate)}</td></tr>`).join("")}</tbody></table><div class="paper-totals"><div><span>Subtotal</span><strong>${money(d.subtotal)}</strong></div><div><span>Tax (${d.taxRate}%)</span><strong>${money(d.tax)}</strong></div><div class="paper-grand"><span>Total</span><strong>${money(d.total)}</strong></div></div>${d.notes?`<div class="paper-notes"><strong>Notes</strong><br>${escapeHtml(d.notes)}</div>`:""}<div class="paper-thanks">${d.type==="Receipt"?"Thank you. Payment received.":"Thank you for your business."}</div>`;
+  $("#print-area").innerHTML=`<div class="paper-head"><div class="paper-brand"><h2>${escapeHtml(businessName)}</h2><p>${escapeHtml(address)}</p><p>${escapeHtml(b.email||"")}${b.phone?" · "+escapeHtml(b.phone):""}</p>${b.trn?`<p>TRN: ${escapeHtml(b.trn)}</p>`:""}</div><div class="paper-meta"><h3>${escapeHtml(d.type)}</h3><p><strong>${escapeHtml(d.number)}</strong></p><p>Date: ${dateText(d.date)}</p><p><strong>Payment status: ${documentStatus(d)}</strong></p></div></div><div class="paper-customer"><small>${d.type==="Receipt"?"RECEIVED FROM":"PREPARED FOR"}</small><strong>${escapeHtml(d.customer.name)}</strong><p>${escapeHtml(d.customer.email||"")}</p><p>${escapeHtml(d.customer.phone||"")}</p><p>${customerAddress}</p></div><table class="paper-items"><thead><tr><th>DESCRIPTION</th><th>QTY</th><th>RATE</th><th class="align-right">AMOUNT</th></tr></thead><tbody>${d.lines.map(l=>`<tr><td>${escapeHtml(l.description)}</td><td>${l.qty}</td><td>${money(l.rate)}</td><td class="align-right">${money(l.qty*l.rate)}</td></tr>`).join("")}</tbody></table><div class="paper-totals"><div><span>Subtotal</span><strong>${money(d.subtotal)}</strong></div><div><span>Tax (${d.taxRate}%)</span><strong>${money(d.tax)}</strong></div><div class="paper-grand"><span>Total</span><strong>${money(d.total)}</strong></div></div>${d.notes?`<div class="paper-notes"><strong>Notes</strong><br>${escapeHtml(d.notes)}</div>`:""}<div class="paper-thanks">${d.type==="Receipt"?"Thank you. Payment received.":"Thank you for your business."}</div><div class="paper-footer">BizFlow Jamaica · bizflowja.pages.dev</div>`;
   openModal("preview-modal");
 }
 function loadSettings(){
@@ -352,6 +355,7 @@ $$("[data-doc]").forEach(b=>b.onclick=()=>newDocument(b.dataset.doc));
 $("#add-line").onclick=()=>addLine();
 $("#document-form").addEventListener("submit",saveDocument);
 $("#doc-tax").addEventListener("input",updateTotals);
+$("#doc-type").addEventListener("change",()=>{$("#doc-status").value=$("#doc-type").value==="Receipt"?"Paid":"Unpaid";});
 $("#document-search").addEventListener("input",renderDocuments);
 $("#document-filter").addEventListener("change",()=>showView("documents"));
 $("#customer-search").addEventListener("input",renderCustomers);
