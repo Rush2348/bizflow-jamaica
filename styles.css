@@ -4,6 +4,15 @@
 @media print{body{background:#fff!important}.app-shell,.modal-header,.modal-footer,.toast{display:none!important}.modal-backdrop{display:block!important;position:static!important;background:#fff!important;padding:0!important}.preview-modal{display:block!important;max-height:none!important;width:100%!important;box-shadow:none!important;border:0!important;overflow:visible!important}.print-area{padding:0!important}.paper-items{page-break-inside:avoid}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 /* Supabase account access */
+.auth-loading-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eef5f6,#f7f9fb);text-align:center}
+.auth-loading-card{display:flex;flex-direction:column;align-items:center;gap:12px;color:#17354d}
+.auth-loading-card .brand-mark{width:48px;height:48px;font-size:25px}
+.auth-loading-card strong{font:800 21px Manrope}
+.auth-loading-card p{margin:0;color:#7b8b9a;font-size:12px}
+.auth-loading-spinner{width:25px;height:25px;border:3px solid #dcebe9;border-top-color:#0d9488;border-radius:50%;animation:auth-spin .8s linear infinite}
+@keyframes auth-spin{to{transform:rotate(360deg)}}
+body.auth-checking .auth-loading-screen{display:flex}
+body.auth-checking .auth-screen,body.auth-checking .app-shell{display:none!important}
 .auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eef5f6,#f7f9fb)}
 .auth-card{width:min(430px,100%);background:#fff;border:1px solid #e5edf1;border-radius:16px;padding:34px;box-shadow:0 18px 55px rgba(16,42,67,.10)}
 .auth-brand{display:flex;align-items:center;gap:11px;margin-bottom:34px;color:#17354d}
