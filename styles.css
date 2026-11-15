@@ -98,3 +98,32 @@ td,td strong{font-size:11px}
   #print-area{zoom:.68!important;padding:6mm 7mm 5mm!important}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
+
+/* Final print fit: scale the full document into one A5 page */
+@page{size:A5 portrait;margin:0}
+@media print{
+  html,body{width:148mm!important;height:210mm!important;min-height:210mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  body *{visibility:hidden!important}
+  #preview-modal,#preview-modal *{visibility:visible!important}
+  #preview-modal{position:absolute!important;left:0!important;top:0!important;display:block!important;width:148mm!important;height:210mm!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;box-shadow:none!important;background:#fff!important}
+  #preview-modal .modal-header,#preview-modal .modal-footer{display:none!important}
+  #print-area{display:block!important;position:absolute!important;left:0!important;top:0!important;width:263%!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:6mm 7mm 5mm!important;box-sizing:border-box!important;font-size:9px!important;zoom:.38!important}
+  #print-area>*{break-inside:avoid!important;page-break-inside:avoid!important}
+  .paper-head{padding-bottom:5px!important;gap:8px!important}
+  .paper-brand h2{font-size:15px!important;margin-bottom:2px!important}
+  .paper-brand p,.paper-meta p{font-size:7px!important;line-height:1.15!important;margin:1px 0!important}
+  .paper-meta h3{font-size:15px!important;margin-bottom:2px!important}
+  .paper-customer{margin:7px 0!important}
+  .paper-customer small{font-size:7px!important}
+  .paper-customer strong{font-size:9px!important;margin-top:2px!important}
+  .paper-customer p{font-size:7px!important;margin:1px 0!important}
+  .paper-items{margin:5px 0!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  .paper-items th,.paper-items td{font-size:7px!important;padding:3px 4px!important}
+  .paper-totals{width:175px!important}
+  .paper-totals div{font-size:7px!important;padding:1px 0!important}
+  .paper-totals .paper-grand{font-size:9px!important;padding-top:3px!important;margin-top:2px!important}
+  .paper-notes{font-size:7px!important;margin-top:5px!important;padding-top:3px!important}
+  .paper-thanks{font-size:7px!important;margin-top:5px!important}
+  .paper-footer{display:block!important;text-align:center!important;font-size:7px!important;margin-top:4px!important;padding-top:3px!important;border-top:1px solid #e7edf1!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
