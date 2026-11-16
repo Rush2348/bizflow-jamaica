@@ -214,10 +214,13 @@ function documentStatus(doc){return doc.status==="Paid"||(!doc.status&&doc.type=
 function renderAll(){renderDashboard();renderDocuments();renderCustomers();$("#profile-name").textContent=state.settings.businessName||"Your business";}
 function renderDashboard(){
   const docs=state.documents;
+  const invoices=docs.filter(d=>d.type==="Invoice");
+  const paidInvoices=invoices.filter(d=>documentStatus(d)==="Paid");
+  const unpaidInvoices=invoices.filter(d=>documentStatus(d)==="Unpaid");
   $("#stat-docs").textContent=docs.length;
-  $("#stat-invoices").textContent=docs.filter(d=>d.type==="Invoice").length;
-  $("#stat-quotes").textContent=docs.filter(d=>d.type==="Quotation").length;
-  $("#stat-value").textContent=money(docs.filter(d=>d.type==="Invoice").reduce((s,d)=>s+d.total,0));
+  $("#stat-value").textContent=money(paidInvoices.reduce((sum,d)=>sum+(Number(d.total)||0),0));
+  $("#stat-outstanding").textContent=money(unpaidInvoices.reduce((sum,d)=>sum+(Number(d.total)||0),0));
+  $("#stat-unpaid").textContent=unpaidInvoices.length;
   const recent=docs.slice(0,5);
   const el=$("#recent-list");
   if(!recent.length){el.className="document-list empty-state";el.innerHTML='<div class="empty-illustration">▤</div><strong>No documents yet</strong><p>Create your first invoice, quote or receipt to get started.</p><button class="button secondary small" id="empty-create">Create first document</button>';$("#empty-create").onclick=()=>newDocument();return;}
@@ -436,7 +439,7 @@ async function loadCloudState(){
     const lines=(itemsByDoc.get(d.id)||[]).map(i=>({description:i.description,qty:Number(i.quantity),rate:Number(i.unit_price)}));
     return {
       id:d.id,type:d.document_type==="quotation"?"Quotation":d.document_type==="receipt"?"Receipt":"Invoice",
-      number:d.document_number||"",date:d.issue_date,customer:{id:c.id,name:c.name||"Customer",email:c.email||"",phone:c.phone||"",address:c.address||""},
+      number:d.document_number||"",date:d.issue_date,status:d.payment_status||((d.document_type==="receipt")?"Paid":"Unpaid"),customer:{id:c.id,name:c.name||"Customer",email:c.email||"",phone:c.phone||"",address:c.address||""},
       lines,taxRate:Number(d.tax_rate)||0,subtotal:Number(d.subtotal)||0,tax:Number(d.tax_amount)||0,total:Number(d.total)||0,
       notes:d.notes||"",createdAt:d.created_at||new Date().toISOString(),
       business:{businessName:activeBusiness.business_name||"",email:activeBusiness.email||"",phone:activeBusiness.phone||"",address:activeBusiness.address||"",currency:activeBusiness.currency||"JMD",trn:""}
@@ -511,7 +514,7 @@ async function syncCloudState(){
     const docPayload={
       id:doc.id,business_id:businessId,customer_id:customer.id,
       document_type:doc.type.toLowerCase(),document_number:doc.number||null,issue_date:doc.date||null,
-      status:"draft",subtotal:doc.subtotal||0,tax_rate:doc.taxRate||0,tax_amount:doc.tax||0,total:doc.total||0,notes:doc.notes||null
+      payment_status:doc.status==="Paid"?"Paid":"Unpaid",subtotal:doc.subtotal||0,tax_rate:doc.taxRate||0,tax_amount:doc.tax||0,total:doc.total||0,notes:doc.notes||null
     };
     const {error:docError}=await supabaseClient.from("documents").upsert(docPayload);
     if(docError) throw docError;
